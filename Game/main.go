@@ -158,7 +158,7 @@ func handle(conn *Connection, serv *Server) {
 			//seq := decr[0]  // seq?
 			//hash := decr[1] // hash?
 			opcode := binary.LittleEndian.Uint16(decr[2:4])
-			//fmt.Printf("[%v] %v\n", sess.kostyl, hex.EncodeToString(decr))
+			fmt.Printf("[%v] %v\n", sess.kostyl, hex.EncodeToString(decr))
 
 			switch opcode {
 			case 0x84:
