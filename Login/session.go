@@ -37,7 +37,7 @@ func (sess *session) challengeResponse2(parser *packet.Reader) error {
 	fmt.Printf("Check. int1 %d, int2 %d, byte1 %d, str1len %d, str1 %s, login %s, token %s\n", int1, int2, byte1, str1len, str1, login, hex.EncodeToString(token))
 
 	//should be proper check for login
-	if login != "admin" && login != "user" {
+	if login != "admin" && login != "test" {
 		err := sess.loginDenied("User doesn't exists", 2)
 		if err != nil {
 			return err

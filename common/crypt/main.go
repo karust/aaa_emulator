@@ -1,3 +1,5 @@
+// Thanks https://github.com/NL0bP for clarifying client encryption offset problem
+
 package crypt
 
 import (
@@ -23,28 +25,38 @@ func Crc8(packet []byte) byte {
 }
 
 // toClientEncr help function
-func add(key *uint) byte {
-	*key += 3132373
-	n := (*key >> 16) & 247
+func add(cry *uint) byte {
+	*cry += 0x2FCBD5
+	n := (*cry >> 0x10) & 0xF7
 	if n == 0 {
-		n = 254
+		n = 0xFE
 	}
 	return byte(n)
+}
+
+func makeSeq(mSeq *uint) byte {
+	*mSeq += 0x2FA245
+	n := byte(*mSeq>>0xE) & 0x73
+	if n == 0 {
+		n = 0xFE
+	}
+	//fmt.Println("makeSeq:", strconv.FormatInt(int64(n), 16), "  mSeq:", strconv.FormatInt(int64(*mSeq), 16))
+	return n
 }
 
 //ToClientEncr ... encrypt message to client
 func ToClientEncr(packet []byte) []byte {
 	length := len(packet)
 	array := make([]byte, length)
-	key := uint(length ^ 522286496)
+	cry := uint(length ^ 522286496)
 	n := 4 * int(length/4)
 
 	for i := n - 1; i >= 0; i-- {
-		val := add(&key)
+		val := add(&cry)
 		array[i] = packet[i] ^ val
 	}
 	for i := n; i < length; i++ {
-		val := add(&key)
+		val := add(&cry)
 		array[i] = packet[i] ^ val
 	}
 	return array
@@ -73,7 +85,7 @@ func LoadRSA() *CryptRSA {
 	return _rsa
 }
 
-// GetXorKey ... extracts XOR key
+// GetXorKey ... extracts XOR cry
 func (cr *CryptRSA) GetXorKey(raw []byte) uint {
 	rng := rand.Reader
 	keyXORraw, err := rsa.DecryptPKCS1v15(rng, cr.privKey, raw)
@@ -87,7 +99,7 @@ func (cr *CryptRSA) GetXorKey(raw []byte) uint {
 	return uint(keyXOR)
 }
 
-// GetAesKey ... extracts AES key
+// GetAesKey ... extracts AES cry
 func (cr *CryptRSA) GetAesKey(raw []byte) []byte {
 	rng := rand.Reader
 	keyAES, err := rsa.DecryptPKCS1v15(rng, cr.privKey, raw)
@@ -102,7 +114,8 @@ type CryptAES struct {
 	aesKey []byte
 	xorKey uint
 	msgKey map[uint8]uint8
-	seq    uint
+	Seq    byte
+	mSeq   uint
 	mode   cipher.BlockMode
 }
 
@@ -111,9 +124,7 @@ func ClientCrypt(aesKey []byte, xorKey uint) *CryptAES {
 	_aes := new(CryptAES)
 	_aes.aesKey = aesKey
 	_aes.xorKey = xorKey * xorKey & 0xffffffff
-	//_aes.msgKey = map[uint8]uint8{0x30: 0x2f, 0x31: 0x2, 0x33: 0x4, 0x34: 0x5, 0x35: 0x16, 0x36: 0x27, 0x37: 0x8, 0x38: 9, 0x39: 0xa, 0x3b: 0x1c, 0x3c: 0xd, 0x3e: 0x1f, 0x3f: 0x10}
-	_aes.msgKey = map[uint8]uint8{0x30: 0x1, 0x31: 0x2, 0x32: 0x3, 0x33: 0x4, 0x34: 0x5, 0x35: 0x6, 0x36: 0x7, 0x37: 0x8, 0x38: 9, 0x39: 0xa, 0x3a: 0xb, 0x3b: 0xc, 0x3c: 0xd, 0x3e: 0xf, 0x3f: 0x10}
-	_aes.seq = 0
+	_aes.msgKey = map[uint8]uint8{0x30: 1, 0x31: 2, 0x33: 4, 0x34: 5, 0x35: 6, 0x36: 7, 0x37: 8, 0x38: 9, 0x39: 0xa, 0x3b: 0xc, 0x3c: 0xd, 0x3e: 0xf, 0x3f: 0x10}
 
 	block, err := aes.NewCipher(aesKey)
 	if err != nil {
@@ -124,61 +135,82 @@ func ClientCrypt(aesKey []byte, xorKey uint) *CryptAES {
 	return _aes
 }
 
-func (cr *CryptAES) decXor(packet []byte, mkey uint8, offset int) []byte {
+// DecXor ... Decrypts 1st layer of XOR encryption
+func (cr *CryptAES) DecXor(packet []byte, mkey uint) []byte {
 	length := len(packet)
 	array := make([]byte, length)
-	mul := cr.xorKey * uint(mkey)
-	key := (0x75a024a4 ^ mul) ^ 0xC3903b6a
+	mul := cr.xorKey * mkey
+	//cr.mSeq = mul
 
-	n := 4 * int(length/4)
+	cry := mul ^ (uint(makeSeq(&cr.mSeq)) + 0x75a024a4) ^ 0xC3903b6a
 
-	for i := n - 1 - offset; i >= 0; i-- {
-		val := add(&key)
-		array[i] = packet[i] ^ val
+	//fmt.Println("==cr.Seq ", strconv.FormatInt(int64(cr.Seq), 16))
+	offset := 4
+	if cr.Seq != 0 {
+		if cr.Seq%3 != 0 {
+			if cr.Seq%5 != 0 {
+				if cr.Seq%7 != 0 {
+					if cr.Seq%9 != 0 {
+						if !(cr.Seq%11 != 0) {
+							offset = 7
+						} else {
+							offset = 3
+						}
+					} else {
+						offset = 11
+					}
+				} else {
+					offset = 2
+				}
+			} else {
+				offset = 5
+			}
+		} else {
+			offset = 9
+		}
 	}
-	for i := n - offset; i < length; i++ {
-		val := add(&key)
-		array[i] = packet[i] ^ val
+
+	if cr.Seq == 0 {
+		offset = 9
 	}
+	n := offset * (length / offset)
+	fmt.Println("off, len, n:", offset, length, n)
+	for i := n - 1; i >= 0; i-- {
+		array[i] = packet[i] ^ add(&cry)
+	}
+	for i := n; i < length; i++ {
+		array[i] = packet[i] ^ add(&cry)
+	}
+	cr.Seq += makeSeq(&cr.mSeq)
+	cr.Seq++
 	return array
 }
 
 // Decrypt ...
 func (cr *CryptAES) Decrypt(data []byte, size int) []byte {
-	defer func() {
-		cr.seq++
-	}()
 	if (len(data) - 1) < aes.BlockSize {
-		panic("ciphertext too short")
+		panic("[CRYPT] ciphertext too short")
 	}
 	// CBC mode always works in whole blocks.
 	if (len(data)-1)%aes.BlockSize != 0 {
-		panic("ciphertext is not a multiple of the block size")
+		panic("[CRYPT] ciphertext is not a multiple of the block size")
 	}
 
 	xored := make([]byte, size)
 	if _, ok := cr.msgKey[data[0]]; !ok {
-		fmt.Println("[CRYPT] No key in map:", data[0])
+		fmt.Println("[CRYPT] No cry in map:", data[0])
 	}
-	mkey := uint8((len(data)+2)/16-1) << 4
-	//mkey := cr.msgKey[data[0]]
-	mkey += cr.msgKey[data[0]] & 0x000f
+
+	mkey := uint(size/16-1) << 4
+	//fmt.Println("Mkey1", mkey)
+	mkey += uint(cr.msgKey[data[0]])
+	//fmt.Println("Mkey2", mkey)
+
 	msg := data[1 : size-2]
 	//fmt.Print("Mkey: ", mkey, " ")
 
-	if cr.seq == 0 {
-		xored = cr.decXor(msg, mkey, 7)
-		//fmt.Print("Off: ", 7, "  ")
-	} else if cr.seq == 1 {
-		xored = cr.decXor(msg, mkey, 1)
-		//fmt.Print("Off: ", 1, "  ")
-	} else if cr.seq == 2 || cr.seq == 3 || cr.seq == 4 {
-		xored = cr.decXor(msg, mkey, 0)
-		//fmt.Print("Off: ", 0, "  ")
-	} else {
-		xored = cr.decXor(msg, mkey, 0)
-		//fmt.Print("Off: ", 0, "  ")
-	}
+	xored = cr.DecXor(msg, mkey)
+
 	decr := make([]byte, size)
 	cr.mode.CryptBlocks(decr, xored)
 	return decr

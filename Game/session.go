@@ -131,11 +131,16 @@ func (sess *Session) OnMovement(pack []byte) {
 	reader.Byte() // aStace :=
 	reader.Byte() // aAlertness :=
 	reader.Byte() // aFlags :=
-	fmt.Println(posX, posY, posZ)
-	fmt.Println(rotX, rotY, rotZ)
-	fmt.Println(aDmX, aDmY, aDmZ)
-	fmt.Println(velX, velY, velZ)
-
+	//fmt.Println(posX, posY, posZ)
+	//fmt.Println(rotX, rotY, rotZ)
+	// Escaping compiling error
+	aDmX = aDmX
+	aDmY = aDmY
+	aDmZ = aDmZ
+	velX = velX
+	velY = velY
+	velZ = velZ
+	
 	go sess.MovementReply(pack, uint32(posX), uint32(posY), uint32(posZ), uint16(rotX), uint16(rotY), uint16(rotZ))
 }
 

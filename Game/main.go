@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	"../common/crypt"
@@ -158,11 +159,12 @@ func handle(conn *Connection, serv *Server) {
 			//seq := decr[0]  // seq?
 			//hash := decr[1] // hash?
 			opcode := binary.LittleEndian.Uint16(decr[2:4])
-			fmt.Printf("[%v] %v\n", sess.kostyl, hex.EncodeToString(decr))
+			//fmt.Printf("[%v] %v\n", sess.kostyl, hex.EncodeToString(decr))
 
 			switch opcode {
 			case 0x84:
 				sess.OnMovement(decr)
+				print("Movement")
 			default:
 				//sess.World_6_BigPacket()
 				switch sess.kostyl {
@@ -172,24 +174,23 @@ func handle(conn *Connection, serv *Server) {
 					sess.conn.Write(data)
 					data, _ = hex.DecodeString("1d00dd05107771045f36774517e6bd86214285b4fe1f2e30d1bd8b5dc4f4231d00dd05cd7071045f36774514e6bd86214285b4fe1f2e30d2bd8b5dc4f423")
 					sess.conn.Write(data)
-					print("1\n")
+					//print("1\n")
 				case 3:
 					data, _ := hex.DecodeString("0c00dd05f26537116a238351c6f7")
 					sess.conn.Write(data)
-					print("3\n")
+					//print("3\n")
 				case 4:
 					data, _ := hex.DecodeString("1000dd05f631c9c797704010e0b0815186b7")
 					sess.conn.Write(data)
-					print("4\n")
+					//print("4\n")
 				case 6:
 					sess.World_6_BigPacket()
-					print("6\n")
-				default:
-					fmt.Printf("[%v] %v\n", sess.kostyl, hex.EncodeToString(decr))
+					//print("6\n")
+					//fmt.Println("[WORLD-ENCR] No opcode found:", opcode)
 				}
-				//fmt.Println("[WORLD-ENCR] No opcode found:", opcode)
+				sess.kostyl++
 			}
-			sess.kostyl++
+			fmt.Printf("[%v] %v\n", strconv.FormatInt(int64(sess.cr.Seq), 16), hex.EncodeToString(decr))
 		default:
 			fmt.Println("[GAME] No such subtype:", subtype)
 		}
