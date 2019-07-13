@@ -5,13 +5,12 @@ import (
 	"log"
 	"os"
 
+	"../common/utils"
 	"github.com/BurntSushi/toml"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
-
-// "runtime"
 
 var loginServer *LoginServer
 
@@ -49,7 +48,7 @@ func (login *LoginServer) initializeDatabase(config Config) {
 
 // Take config and initialize login server with games servers that it serves
 func (login *LoginServer) initializeServer(config Config) {
-	login.Address = makeAdress(config.General.IP, config.General.Port)
+	login.Address = utils.MakeAdress(config.General.IP, config.General.Port)
 	login.Autologin = config.General.Autologin
 	for _, serv := range config.Servers {
 		gameServer := GameServer{
@@ -58,8 +57,8 @@ func (login *LoginServer) initializeServer(config Config) {
 			Type:     serv.Type,
 			Color:    serv.Color,
 			Load:     serv.Load,
-			IsOnline: boolToByte(serv.IsOnline),
-			IP:       convertIPtoBytes(serv.IP),
+			IsOnline: utils.BoolToByte(serv.IsOnline),
+			IP:       utils.ConvertIPtoBytes(serv.IP),
 			Port:     uint16(serv.Port)}
 		login.GameServers = append(login.GameServers, gameServer)
 	}

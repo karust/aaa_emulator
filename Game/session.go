@@ -10,25 +10,6 @@ import (
 	//"github.com/jinzhu/gorm"
 )
 
-// Session ... Session
-type Session struct {
-	conn *Connection
-	//db   *gorm.DB
-	accountID    int
-	uid          uint
-	cr           *crypt.CryptAES
-	kostyl       int
-	alive        bool
-	ingame       bool
-	visibleChars []int
-}
-
-type Character struct {
-	posX uint32
-	posY uint32
-	posZ uint32
-}
-
 func intInSlice(a int, list []int) bool {
 	for _, b := range list {
 		if b == a {

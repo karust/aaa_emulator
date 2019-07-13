@@ -15,8 +15,38 @@ type Reader struct {
 }
 
 // CreateReader ... Creates packet reader
-func CreateReader(buffer []byte) (reader *Reader) {
-	reader = &Reader{Pack: buffer, Offset: 0, Len: uint16(len(buffer)), Err: false}
+func CreateReader(buffer []byte) *Reader {
+	return &Reader{Pack: buffer, Offset: 0, Len: uint16(len(buffer)), Err: false}
+}
+
+// GetPacketReader ... Reads length of packet, creates buffer and returns reader
+// Read timeout is in seconds
+func GetPacketReader(client net.Conn, timeout time.Duration) (reader *Reader, err error) {
+	// Set read timout if user will hold connection too long
+	if timeout != 0 {
+		client.SetReadDeadline(time.Now().Add(timeout * time.Second))
+	}
+	//else {
+	//	client.SetReadDeadline(time.Time{})
+	//}
+
+	// Read size of packet
+	packLenBuf := make([]byte, 2)
+	_, err = client.Read(packLenBuf)
+	if err != nil {
+		return
+	}
+
+	// Read packet
+	packLen := binary.LittleEndian.Uint16(packLenBuf)
+	packBuf := make([]byte, packLen)
+	_, err = client.Read(packBuf)
+	if err != nil {
+		return
+	}
+
+	// Create reader
+	reader = CreateReader(packBuf)
 	return
 }
 
@@ -107,35 +137,4 @@ func (pr *Reader) Bool() bool {
 		return false
 	}
 	return true
-}
-
-// GetPacketReader ... Reads length of packet, creates buffer and returns reader
-// Read timeout is in seconds
-func GetPacketReader(client net.Conn, timeout time.Duration) (reader *Reader, err error) {
-	// Set read timout if user will hold connection too long
-	if timeout != 0 {
-		client.SetReadDeadline(time.Now().Add(timeout * time.Second))
-	}
-	//else {
-	//	client.SetReadDeadline(time.Time{})
-	//}
-
-	// Read size of packet
-	packLenBuf := make([]byte, 2)
-	_, err = client.Read(packLenBuf)
-	if err != nil {
-		return
-	}
-
-	// Read packet
-	packLen := binary.LittleEndian.Uint16(packLenBuf)
-	packBuf := make([]byte, packLen)
-	_, err = client.Read(packBuf)
-	if err != nil {
-		return
-	}
-
-	// Create reader and read empty byte
-	reader = CreateReader(packBuf)
-	return
 }

@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"encoding/hex"
@@ -7,11 +7,13 @@ import (
 	"strings"
 )
 
-func makeAdress(ip string, port int) string {
+// MakeAdress ... Concatenates IP and Port to make Addres
+func MakeAdress(ip string, port int) string {
 	return ip + ":" + strconv.Itoa(port)
 }
 
-func convertIPtoBytes(ip string) []byte {
+// ConvertIPtoBytes ... Converts string IP value to Byte array
+func ConvertIPtoBytes(ip string) []byte {
 	parts := strings.Split(ip, ".")
 	var bytes []byte
 	for _, p := range parts {
@@ -21,14 +23,16 @@ func convertIPtoBytes(ip string) []byte {
 	return bytes
 }
 
-func boolToByte(b bool) byte {
+// BoolToByte ... Converts Boolean value to Byte
+func BoolToByte(b bool) byte {
 	if b {
 		return 1
 	}
 	return 0
 }
 
-func randomHex(n int) (string, error) {
+// RandomHex ... Generates random Hex string of given length
+func RandomHex(n int) (string, error) {
 	bytes := make([]byte, n)
 	if _, err := rand.Read(bytes); err != nil {
 		return "", err
