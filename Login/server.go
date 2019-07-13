@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"time"
 
 	"../common/packet"
 )
@@ -74,6 +75,8 @@ func handleSession(client net.Conn) {
 		// If during session occured some error - end it
 		if err != nil {
 			log.Printf("%s - %s: %s\n", session.Client.RemoteAddr().String(), session.Username, err.Error())
+			// Wait till client gets all messages and displays them before we close connection
+			time.Sleep(time.Second * 3)
 			break
 		}
 	}

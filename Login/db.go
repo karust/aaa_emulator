@@ -32,7 +32,7 @@ type User struct {
 	Login       string
 	Token       string
 	Email       string
-	LastLogin   uint   `db:"last_login"`
+	LastLogin   int64  `db:"last_login"`
 	LastIP      string `db:"last_ip"`
 	CreatedTime uint   `db:"created_at"`
 	UpdatedTime uint   `db:"updated_at"`

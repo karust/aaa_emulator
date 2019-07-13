@@ -70,8 +70,8 @@ func (sess *Session) getKeys(reader *packet.Reader, rsa crypt.CryptRSA) {
 	reader.Short() // Unknown, always = 355 (0x6301)
 	reader.Int()   // lenAES ?
 	reader.Short() // lenXOR ?
-	encAES := reader.Bytes(128)
-	encXOR := reader.Bytes(128)
+	encAES := reader.Bytes()
+	encXOR := reader.Bytes()
 
 	aesKey := rsa.GetAesKey(encAES)
 	xorKey := rsa.GetXorKey(encXOR)
@@ -140,7 +140,7 @@ func (sess *Session) OnMovement(pack []byte) {
 	velX = velX
 	velY = velY
 	velZ = velZ
-	
+
 	go sess.MovementReply(pack, uint32(posX), uint32(posY), uint32(posZ), uint16(rotX), uint16(rotY), uint16(rotZ))
 }
 

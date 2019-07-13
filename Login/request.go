@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"time"
 
 	"../common/packet"
 )
@@ -19,65 +20,55 @@ func (sess *Session) ChallengeResponse2(parser *packet.Reader) error {
 	token := parser.Bytes()
 
 	if parser.Err {
-		return errors.New("Error parsing packet")
+		return errors.New("Error parsing ChallengeResponse2")
 	}
 
-	//fmt.Printf("[ChallengeResponse2] pFrom %v, pTo %v, dev %v, str1 %v, login %v, token %v\n", pFrom, pTo, dev, hex.EncodeToString(mac), login, hex.EncodeToString(token))
-
+	// Get user from db with provided login
 	user := User{}
-	err := loginServer.DB.Select(&user, "SELECT * FROM users WHERE login = ?", login)
-	if err != nil {
-		fmt.Println("ChallengeResponse2: ", err)
-	}
-	fmt.Println(user, user == User{})
-	// Create new user if autologin
-	if loginServer.Autologin {
+	stmt, err := loginServer.DB.Preparex(`SELECT * FROM users WHERE login=$1`)
+	err = stmt.Get(&user, login)
 
+	// If user not exist and autologin is off
+	if err != nil && !loginServer.Autologin {
+		sess.LoginDenied("User does not exist", 0)
+		// If user not exist and autologin is on
+	} else if user.Login == "" && loginServer.Autologin {
+		stmt, err = loginServer.DB.Preparex(`INSERT INTO users (login, token, email, last_login, last_ip, created_at, updated_at) VALUES ($1, $2, '', $3, $4, $5, $6);`)
+		timeNow := time.Now().Unix()
+		clientAddr := sess.Client.RemoteAddr().String()
+		_, err = stmt.Exec(login, hex.EncodeToString(token), timeNow, clientAddr, timeNow, timeNow)
+
+	} else if user.Token != hex.EncodeToString(token) {
+		sess.LoginDenied("Wrong password, sir", 4)
+		err = errors.New("Wrong password")
 	}
-	//should be proper check for login
-	if login != "admin" && login != "test" {
-		err := sess.loginDenied("User doesn't exists", 2)
-		if err != nil {
-			return err
-		}
-		return nil
+
+	// If some error occured during login
+	if err != nil {
+		fmt.Println("ChallengeResponse2 ", err)
+		return err
 	}
 
 	sess.Username = login
-
-	//should be proper check for token/password
-	if hex.EncodeToString(token) == "0102030405060708090a0b0c0d0e0f1000000000000000000000000000000000" {
-		err := sess.loginDenied("Wrong password, sir", 4)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
-	err = sess.joinResponse()
-	if err != nil {
-		return err
-	}
-	err = sess.authResponse()
-	if err != nil {
-		return err
-	}
-	return nil
+	err = sess.JoinResponse()
+	err = sess.AuthResponse(user.ID, 3)
+	return err
 }
 
 // ListWorld ... Request to show game servers
 func (sess *Session) ListWorld(parser *packet.Reader) error {
-	err := sess.worldListPacket()
-	if err != nil {
-		return err
-	}
-	return nil
+	parser.Long() // Flag
+	// TODO: send info about characters on servers
+	err := sess.WorldListPacket()
+	return err
 }
 
 // EnterWorld ... request to enter some server
 func (sess *Session) EnterWorld(parser *packet.Reader) error {
-	parser.Long()
-	serverID := parser.Byte()
-	sess.worldCookiePacket(rand.Uint32(), &loginServer.GameServers[serverID])
+	parser.Long() // Flag
+	gameServerID := parser.Byte()
+	// TODO: Ask GS enter permission. Get cookie from GS
+	cookie := rand.Uint32()
+	sess.WorldCookiePacket(cookie, &loginServer.GameServers[gameServerID])
 	return nil
 }

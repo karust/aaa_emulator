@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/hex"
+	"math/rand"
 	"strconv"
 	"strings"
 )
@@ -24,4 +26,12 @@ func boolToByte(b bool) byte {
 		return 1
 	}
 	return 0
+}
+
+func randomHex(n int) (string, error) {
+	bytes := make([]byte, n)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
 }
