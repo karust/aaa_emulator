@@ -1,0 +1,40 @@
+[general]
+ip = "0.0.0.0"
+port = 1237
+autologin = false
+
+[database]
+wipe = true # Wipe database and create new schema
+type = 1    # 0 - sqlite, 1 - PostgreSql (not implemented yet)
+sqlite_filename = "login.db"
+
+# For PostgreSql
+user = "postgres" 
+password = "toor"
+database = "archeage"
+ip = "127.0.0.1"
+port = 5432
+
+# Servers will appear as they declared here 
+[servers]
+    [servers.0]
+    id = 0
+    name = "First Server" 
+    ip = "127.0.0.1"
+    port = 1239
+    is_online = true
+    is_hidden = false
+    type     = 1
+	color   = 1
+	load     = 1   # 0 - low, 1 - avg, 2 - high
+
+    [servers.1]
+    id = 1
+    name = "Second Server" 
+    ip = "127.0.0.1"
+    port = 1240
+    is_online = true
+    is_hidden = false
+    type     = 1
+	color   = 1
+	load     = 1   # 0 - low, 1 - avg, 2 - high

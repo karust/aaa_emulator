@@ -8,7 +8,7 @@ import (
 	"os"
 	"strconv"
 
-	"../aaa_emulator/common/crypt"
+	"./common/crypt"
 )
 
 func main1() {

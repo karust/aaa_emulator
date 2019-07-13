@@ -13,3 +13,6 @@ Proxy/Proxy
 Login/debug
 Login/Login
 _py_source/.vscode/settings.json
+
+*.db
+*.bat

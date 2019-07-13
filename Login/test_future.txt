@@ -1,0 +1,7 @@
+The features/vulnerabilities which will need to test:
+1. Malformed packets
+2. Timeout
+
+
+To implement:
+1. Authorization with Trion method

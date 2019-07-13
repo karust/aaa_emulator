@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"../aaa_emulator/common/crypt"
+	"./common/crypt"
 )
 
 //LOBYTE ... #define LOBYTE(w) ((BYTE)(w))
