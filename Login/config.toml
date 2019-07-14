@@ -17,7 +17,7 @@ port = 5432
 
 # Servers will appear as they declared here 
 [servers]
-    [servers.0]
+    [servers.1]
     id = 0
     name = "First Server" 
     ip = "92.255.199.47"
@@ -26,9 +26,9 @@ port = 5432
     is_hidden = false
     type     = 1   # 01- FRESH, 02-UNITED, 03-UNITED
 	color   = 0    # 00-BLUE, 01-GREEN, 02-VIOLET, 08-RED
-	load     = 2   # 0 - low, 1 - avg, 2 - high
+	load     = 1   # 0 - low, 1 - avg, 2 - high
 
-    [servers.1]
+    [servers.2]
     id = 1
     name = "Second Server" 
     ip = "127.0.0.1"

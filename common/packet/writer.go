@@ -35,26 +35,30 @@ func (pw *Writer) Byte(data byte) {
 	binary.Write(pw.pack, binary.LittleEndian, data)
 }
 
+// Bool ... Convert bool to byte and write to pack
+func (pw *Writer) Bool(data bool) {
+	if data {
+		pw.Byte(1)
+	} else {
+		pw.Byte(0)
+	}
+}
+
 // Short ... Convert short to byter and write in pack
 func (pw *Writer) Short(data uint16) {
-	defer func() {
-		pw.Offset += 2
-	}()
+	defer func() { pw.Offset += 2 }()
 	binary.Write(pw.pack, binary.LittleEndian, data)
 }
 
 // Int ... Convert int to byter and write in pack
-func (pw *Writer) Int(data int) {
-	defer func() {
-		pw.Offset += 4
-	}()
+func (pw *Writer) Int(data int32) {
+	defer func() { pw.Offset += 4 }()
 	binary.Write(pw.pack, binary.LittleEndian, data)
 }
 
+// UInt ... Convert uint32 to bytes and write to packet
 func (pw *Writer) UInt(data uint32) {
-	defer func() {
-		pw.Offset += 4
-	}()
+	defer func() { pw.Offset += 4 }()
 	binary.Write(pw.pack, binary.LittleEndian, data)
 }
 
@@ -154,7 +158,7 @@ func CreateEncWriter(opcode uint16, seq *uint8) *EncWriter {
 	pw.head = make([]byte, 4)
 	pw.opcode = opcode
 	binary.LittleEndian.PutUint16(pw.head[0:2], uint16(0))
-	binary.LittleEndian.PutUint16(pw.head[2:4], uint16(1501))
+	binary.LittleEndian.PutUint16(pw.head[2:4], uint16(1501)) // 05dd
 
 	binary.Write(pw.pack, binary.LittleEndian, byte(0))        // crc8
 	binary.Write(pw.pack, binary.LittleEndian, byte(0))        // seqNum

@@ -3,47 +3,38 @@ package main
 import (
 	"encoding/hex"
 	"io/ioutil"
-	"math"
-	"strings"
+	"time"
+
+	SC "./opcodes/SC"
 
 	"../common/packet"
 )
 
-// EnterWorldResponse ... Reason(H) GM(B) SC(I) SP(H) WF(Q) TZ(I)
-// HHI{0}s{1}sBBBBH
-func (sess *Session) EnterWorldResponse() {
-	w := packet.CreateEncWriter(0, sess.conn.encSeq)
+// SCEnterWorldResponsePacket ... Provides RSA public key to client
+func (sess *Session) SCEnterWorldResponsePacket(reason uint16, gm bool, token uint, port uint16) {
+	w := packet.CreateEncWriter(SC.EnterWorldResponse, sess.conn.encSeq)
 
-	w.Short(0)    // Reason
-	w.Byte(0)     // GM
-	w.UInt(0)     // SC
-	w.Short(1250) // SP
-	w.Long(0)     // WF
-	w.UInt(0)     // TZ
+	w.Short(reason) // Reason
+	//w.Bool(gm)      // GM, no such field in 3.5
+	w.UInt(0x5933b51b)                // SC
+	w.Short(port)                     // SP
+	w.Long(uint64(time.Now().Unix())) // WF
+	w.UInt(0xffffff4c)                // TZ
 
-	n := "a38ab4ef39f6b852b8690298855a2b494d21af48b438228524db40b5abb1be65ea773f2116b65b74d113fdc3f7cf91a02e90cb858e20c6d954c46907b939ccefd8e8d8e46be96208a1aaa776a825dd2617a8fafe277032359c05aed96bb02e7d227448e81619c8e7991785a94f0330fced39c40f8dc55a001cbb9b426cbea86f"
-	e := "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010001"
-	w.Short(260)       // H, Public Key Size  0401 (Should be 260, else pizda)
-	w.Short(128*2 + 4) //H, Pub key len (in pub key)
+	w.Short(260) // H, Public Key Size  0401 (Should be 260)
+	w.Short(260) // H, Public Key Length (in pub key) 128*2 + 4 = 260
 	w.UInt(1024)
-	w.HexString(n)
-	w.HexString(e)
+	w.Bytes(gameServer.PubModulus)
+	w.Bytes(gameServer.PubExponent)
 
-	// IP Adress and Port of client??
-	w.Byte(10)
-	w.Byte(1)
-	w.Byte(1)
-	w.Byte(113)
-	w.Short(57259)
+	// TODO: IP Adress and Port of client??
+	w.Byte(92) // natAddr (remote client address)
+	w.Byte(255)
+	w.Byte(199)
+	w.Byte(47)
+	w.Short(49494) // natPort (remote client port)
+	w.Int(1)       // authority, present in 3.5
 	w.Send(sess.conn)
-}
-
-func (sess *Session) persInfo() {
-	sess.World_0x272()
-	sess.World_0xEC(true)
-	sess.World_0x8c()
-	sess.World_0x14d()
-	sess.CharacterListPacket()
 }
 
 func (sess *Session) BeginGame() {
@@ -51,174 +42,190 @@ func (sess *Session) BeginGame() {
 	sess.World_0x145()
 }
 
-//State Responses
+// State Responses
 
-func (sess *Session) World0x94() {
-	w := packet.CreateEncWriter(0x94, sess.conn.encSeq)
-	w.Byte(1) // send Address
-	w.Byte(0) // sp Md5
-	w.Byte(1) // lua Md5
-	dir := "x2ui/hud"
-	w.String(dir)
-	w.Byte(0) // modPack
+// SCHackGuardRetAddrsRequestPacket ...
+func (sess *Session) SCHackGuardRetAddrsRequestPacket(sendAddr bool, spMD5 bool, luaMD5 bool, modPack bool) {
+	w := packet.CreateEncWriter(SC.HackGuardRetAddrsRequest, sess.conn.encSeq)
+	w.Bool(sendAddr)     // send Address
+	w.Bool(spMD5)        // sp Md5
+	w.Bool(luaMD5)       // lua Md5
+	w.String("x2ui/hud") // dir
+	w.Bool(modPack)      // modPack
 	w.Send(sess.conn)
 }
 
-func (sess *Session) World0x34() {
-	//SCAccountInfoPacket
-	host := "archeagegame.com"
-	fset := "7f37340f79087dcb376503dea486380002e66fc7bb9b5d010001"
-	w := packet.CreateEncWriter(0x34, sess.conn.encSeq)
-	w.String(host)
-	w.HexStringL(fset)
-	w.UInt(0)    // count I
-	w.UInt(0)    // initial Labor points I
-	w.Byte(0)    // can place house
-	w.Byte(0)    // can pay tax
-	w.Byte(1)    // can use auction
-	w.Byte(1)    // can trade
-	w.Byte(1)    // can send mail
-	w.Byte(1)    // can use bank
-	w.Byte(1)    // can use copper
-	w.Byte(0)    // second  password max fail count
-	w.UInt(0)    // idle kick time I
-	w.Byte(0)    // enable
-	w.Byte(0)    // pcbang
-	w.Byte(0)    // premium
-	w.Byte(0)    // max characters
-	w.Short(400) // honorPointDuringWarPercent
-	w.Byte(0)    // ucc ver
-	w.Byte(1)    // member type
+// SCInitialConfigPacket ...
+func (sess *Session) SCInitialConfigPacket() {
+	// 6202b7011000617263686561676567616d652e636f6d1a007f37340f79087dcb376503dea4863c0e02e66fc7fbddae001f00 00000000 000000000000010101010100000000000000000090010001
+	// 9c027b011000617263686561676567616d652e636f6d1a007f37340f79087dcb376503dea4863c0e02e66fc7fbddae001f00 00000000 000000000000010101010100000000000000000090010001
+	//  00000000000000000000010101010100000000000000000090010001
+	w := packet.CreateEncWriter(SC.InitialConfig, sess.conn.encSeq)
+	w.String("archeagegame.com")
+	fset := "7f37340f79087dcb376503dea4863c0e02e66fc7fbddae001f00" // Host
+	w.HexStringL(fset)                                             // fset
+	w.UInt(0)                                                      // count
+	w.UInt(0)                                                      // initial Labor points
+
+	// TODO: Initialization of this configs
+	w.Bool(false) // can place house
+	w.Bool(false) // can pay tax
+	w.Bool(true)  // can use auction
+	w.Bool(true)  // can trade
+	w.Bool(true)  // can send mail
+	w.Bool(true)  // can use bank
+	w.Bool(true)  // can use copper
+
+	w.Byte(0) // second  password max fail count
+	w.UInt(0) // idle kick time
+
+	w.Bool(false) // enable
+	w.Byte(0)     // pcbang
+	w.Byte(0)     // premium
+	w.Byte(0)     // max characters
+	w.Short(400)  // honorPointDuringWarPercent
+	w.Byte(0)     // ucc ver
+	w.Byte(1)     // member type
 	w.Send(sess.conn)
 }
 
-func (sess *Session) World0x2c3() {
-	w := packet.CreateEncWriter(0x2c3, sess.conn.encSeq)
-	platform_url := "https://session.draft.integration.triongames.priv"
-	commerce_url := "https://archeage.draft.integration.triongames.priv/commerce/purchase/credits/purchase-credits-flow.action"
-	w.Byte(1) // Activate
-	w.String(platform_url)
-	w.String(commerce_url)
+// SCTrionConfigPacket ...
+func (sess *Session) SCTrionConfigPacket(activate bool, platformURL, commerceURL string) {
+	w := packet.CreateEncWriter(SC.TrionConfig, sess.conn.encSeq)
+	w.Bool(activate) // Activate
+	w.String(platformURL)
+	w.String(commerceURL)
+	// TODO: Below parameters should be URLs also
 	w.Short(0) // HaveWikiUrl
 	w.Short(0) // HaveCsUrl
 	w.Send(sess.conn)
 }
 
-func (sess *Session) World_0xEC(enter bool) {
-	//SCUpdatePremiumPointPacket
-	w := packet.CreateEncWriter(0xEC, sess.conn.encSeq)
-	var (
-		v1 uint32
-		v2 uint32
-		v3 uint64
-		v4 uint32
-		v5 uint32
-	)
-	if enter != true {
-		v1 = 1
-		v2 = 1
-		v3 = 0x6E8D6018
-		v4 = 0
-		v5 = 0
-	} else {
-		v1 = 0
-		v2 = 0
-		v3 = 21600
-		v4 = 53
-		v5 = 51
-	}
-	w.UInt(v1) //payMethod
-	w.UInt(v2) //payLocation
-	w.Long(0)  //payStart
-	w.Long(v3) //payEnd
-	w.UInt(v4) //realPayTime ?
-	w.UInt(v5) //realPayTime ?
-	w.UInt(0)  //buyPremiumCount
+// SCAccountInfoPacket ...
+func (sess *Session) SCAccountInfoPacket(payMethod, payLocation int32, payStart, payEnd uint64) {
+	// 6c0e bd01 01000000 01000000 0000000000000000 5c83f66f00000000 0000000000000000 00000000
+	w := packet.CreateEncWriter(SC.AccountInfo, sess.conn.encSeq)
+	w.Int(payMethod)   // payMethod
+	w.Int(payLocation) // payLocation
+	w.Long(payStart)   // payStart
+	w.Long(payEnd)     // payEnd
+	w.Long(0)          // realPayTime
+	w.UInt(0)          // buyPremiumCount
 	w.Send(sess.conn)
 }
 
-func (sess *Session) World_0x281() {
-	//SCChatSpamDelayPacket
-	w := packet.CreateEncWriter(0x281, sess.conn.encSeq)
-	applyConfig := "0f"
-	detectConfig := "000070420500000000001644cdcc4c3f0ac803"
+// SCChatSpamConfigPacket ...
+func (sess *Session) SCChatSpamConfigPacket() {
+	//02 0100 0101010100000100000000010000010000 0000000000004040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+	//00 0100001300 000070420600000000001644cdcc4c3f0ac803
+	w := packet.CreateEncWriter(SC.ChatSpamConfig, sess.conn.encSeq)
+	applyConfig := "0100001300"
+	detectConfig := "000070420600000000001644cdcc4c3f0ac803"
 
-	w.Byte(2)   //version
-	w.Short(60) //report delay
-	// chatTypeGroup (loop)
+	w.Byte(2)  // version
+	w.Short(1) // report delay
+
+	// TODO: Loop over `chatTypeGroup` (17 chats) bytes
 	w.HexString("0101010100000100000000010000010000")
-	// chatGroupDelay (loop)
+
+	// TODO: Loop over `chatGroupDelay` (17 chats) longs
 	w.HexString("0000000000004040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+
 	w.Byte(0) // whisperChatGroup
-	w.HexStringL(applyConfig)
-	w.HexStringL(detectConfig)
+	w.HexString(applyConfig)
+	w.HexString(detectConfig)
 	w.Send(sess.conn)
 }
 
-func (sess *Session) World_0xBA() {
-
-	w := packet.CreateEncWriter(0xBA, sess.conn.encSeq)
+// SCAccountAttributeConfigPacket ...
+func (sess *Session) SCAccountAttributeConfigPacket() {
+	w := packet.CreateEncWriter(SC.AccountAttributeConfig, sess.conn.encSeq)
 	w.Byte(0) //
 	w.Byte(1) //
 	w.Byte(0) //
 	w.Send(sess.conn)
 }
 
-func (sess *Session) World_0x18a() {
-	//??
-	w := packet.CreateEncWriter(0x18a, sess.conn.encSeq)
-	w.Byte(0)                                         // searchLevel
-	w.Byte(10)                                        // bidLevel
-	w.Byte(0)                                         // postLevel
-	w.Byte(0)                                         // trade
-	w.Byte(0)                                         // mail
-	w.HexString("000f0f0f00000f000000000000000f0000") // limitLevels (loop)
+// SCLevelRestrictionConfigPacket ...
+func (sess *Session) SCLevelRestrictionConfigPacket(searchLevel, bidLevel, postLevel, trade, mail byte) {
+	w := packet.CreateEncWriter(SC.LevelRestrictionConfig, sess.conn.encSeq)
+	w.Byte(searchLevel) // searchLevel
+	w.Byte(bidLevel)    // bidLevel
+	w.Byte(postLevel)   // postLevel
+	w.Byte(trade)       // trade
+	w.Byte(mail)        // mail
+	// TODO: loop over `limitLevels` (15 items)
+	w.HexString("0028282800002800000000000000280000") // limitLevels
 	w.Send(sess.conn)
 }
 
-func (sess *Session) World_0x1cc() {
-	//convertRatioToAAPoint
-	w := packet.CreateEncWriter(0x1cc, sess.conn.encSeq)
+// SCTaxItemConfigPacket ...
+func (sess *Session) SCTaxItemConfigPacket(convertRatioToAAPoint uint64) {
+	// 0f08 2702 0000000000000000
+	w := packet.CreateEncWriter(SC.TaxItemConfig, sess.conn.encSeq)
 	w.Long(0)
 	w.Send(sess.conn)
 }
 
-func (sess *Session) World_0x30() {
-	//?
-	w := packet.CreateEncWriter(0x30, sess.conn.encSeq)
-	w.Byte(1) // ingameShopVersion
-	w.Byte(2) // secondPriceType
-	w.Byte(0) // askBuyLaborPowerPotion
+// SCInGameShopConfigPacket ...
+func (sess *Session) SCInGameShopConfigPacket(ingameShopVersio, secondPriceType, askBuyLaborPowerPotion byte) {
+	// 4509 9001 010200
+	w := packet.CreateEncWriter(SC.InGameShopConfig, sess.conn.encSeq)
+	w.Byte(ingameShopVersio)       // ingameShopVersion
+	w.Byte(secondPriceType)        // secondPriceType
+	w.Byte(askBuyLaborPowerPotion) // askBuyLaborPowerPotion
 	w.Send(sess.conn)
 }
 
-func (sess *Session) World_0x1af() {
-	// SCConflictZoneStatePacket
-	w := packet.CreateEncWriter(0x1af, sess.conn.encSeq)
-	w.UInt(0) //indunCount
-	//{type 2 pvp 1 duel 1}
-	w.UInt(0) //conflictCount
-	//{type 2 peaceMin 4}
+// SCGameRuleConfigPacket ...
+func (sess *Session) SCGameRuleConfigPacket(indunCount, conflictCount uint32) {
+	// 120a 4d01 00000000 00000000
+	w := packet.CreateEncWriter(SC.GameRuleConfig, sess.conn.encSeq)
+	w.UInt(indunCount)
+	// TODO: What does this packet do?
+	/*
+		for (var i = 0; i < _indunCount; i++)
+		{
+			stream.Write(_type); // type
+			stream.Write(_pvp); // pvp
+			stream.Write(_duel); // duel
+		}
+	*/
+	w.UInt(conflictCount)
+	/*
+		for (var i = 0; i < _conflictCount; i++)
+		{
+			stream.Write(_type2); // type
+			stream.Write(_peaceMin); // peaceMin
+		}
+	*/
 	w.Send(sess.conn)
 }
 
-// World_0x2cf ... World date
-func (sess *Session) World_0x2cf() {
-	w := packet.CreateEncWriter(0x2cf, sess.conn.encSeq)
-	w.Byte(1) //protectFaction
-	w.Long(0) //time
-	w.UInt(0) //Year
-	w.UInt(0) //Month
-	w.UInt(0) //Day
-	w.UInt(0) //Hour
-	w.UInt(0) //Min
+// SCUnknownPacket0x215 ...
+func (sess *Session) SCUnknownPacket0x215(protectFaction byte, time int64) {
+	// 760b 1502 01 705cba5a00000000 e2070000 03000000 1b000000 12000000 00000000
+	// TODO: Parse time
+	w := packet.CreateEncWriter(SC.Unknown0x215, sess.conn.encSeq)
+	w.Byte(protectFaction) //protectFaction
+	w.Long(1522162800)     //time
+	w.UInt(2018)           //Year
+	w.UInt(3)              //Month
+	w.UInt(27)             //Day
+	w.UInt(18)             //Hour
+	w.UInt(0)              //Min
 	w.Send(sess.conn)
 }
 
-func (sess *Session) World_0x29c() {
-	//SCDominionDataPacket
-	w := packet.CreateEncWriter(0x1cc, sess.conn.encSeq)
-	w.UInt(0) // {type declareDominion}
+// SCTaxItemConfig2Packet ...
+func (sess *Session) SCTaxItemConfig2Packet(count uint32) {
+	// 3a0c 3f01 00000000
+	w := packet.CreateEncWriter(SC.TaxItemConfig2, sess.conn.encSeq)
+	w.UInt(count)
+	for i := uint32(0); i < count; i++ {
+		w.UInt(0) // Type
+		w.Byte(0) // declareDominion
+	}
 	w.Send(sess.conn)
 }
 
@@ -238,95 +245,110 @@ func (sess *Session) World_6_BigPacket() {
 	sess.conn.Write(data)
 }
 
-func (sess *Session) World_0x272() {
-	w := packet.CreateEncWriter(0x272, sess.conn.encSeq)
-	w.Byte(0)
+// SCGetSlotCountPacket ...
+func (sess *Session) SCGetSlotCountPacket(sc byte) {
+	w := packet.CreateEncWriter(SC.GetSlotCount, sess.conn.encSeq)
+	w.Byte(sc)
 	w.Send(sess.conn)
 }
 
-func (sess *Session) World_0x8c() {
-	w := packet.CreateEncWriter(0x8c, sess.conn.encSeq)
-	data := strings.Repeat("00", 248)
-	w.HexString(data)
-	w.Send(sess.conn)
-}
-
-func (sess *Session) World_0x14d() {
-	w := packet.CreateEncWriter(0x14d, sess.conn.encSeq)
-	w.Long(0)
-	w.Byte(0)
-	w.Send(sess.conn)
-}
-
-func (sess *Session) CharacterListPacket() {
-	w := packet.CreateEncWriter(0x79, sess.conn.encSeq)
-
-	var charName string
-	if sess.accountID == 2 {
-		charName = "Rivestshamiradlemn"
-	} else {
-		charName = "Diffiehellman"
+// SCAccountAttendancePacket ...
+func (sess *Session) SCAccountAttendancePacket(count uint) {
+	// ec0f 1102 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+	w := packet.CreateEncWriter(SC.AccountAttendance, sess.conn.encSeq)
+	//data := strings.Repeat("00", 248)
+	//w.HexString(data)
+	for i := uint(0); i < count; i++ {
+		w.Long(0)
 	}
-	msg := "Hello"
-	w.Byte(1)          //LastChar
-	w.Byte(1)          //TotalCount
-	w.UInt(0x2938)     //CharID 2938
-	w.String(charName) //CharName
-	w.Byte(1)          //Race
-	w.Byte(2)          //Gender
-	w.Byte(1)          //Level
-	w.UInt(370)        //HP
-	w.UInt(320)        //MP
-	w.UInt(179)        //zone_id
-	w.UInt(101)        //F(r)actionId
-	w.String(msg)      //msg
-	w.UInt(0)          //type
-	w.UInt(0)          //family
-	w.UInt(0x1180000)  //validFlags
+	w.Send(sess.conn)
+}
 
-	//Appearance
-	w.UInt(0x4d7f)                     //
-	w.UInt(0x631c)                     //
-	w.UInt(0x21b)                      // HairColor
-	w.UInt(0)                          // twoToneHair
-	w.UInt(0xd0d01)                    // twoToneFirstWidth
-	w.UInt(0x4000000)                  // twoToneSecondWidth
-	w.UInt(0x3da12)                    //
-	w.UInt(0xc8000000)                 //
-	w.UInt(0x3c1b5)                    //
-	w.UInt(math.Float32bits(0x342c54)) // Float???????????
+// SCRaceCongestionPacket ...
+func (sess *Session) SCRaceCongestionPacket() {
+	// // da10 5e00 0000000000000000 0000
+	//w := packet.CreateEncWriter(0x14d, sess.conn.encSeq)
+	w := packet.CreateEncWriter(0x5e, sess.conn.encSeq)
+	w.Long(0)
+	//w.Byte(0)
+	w.Short(0)
+	w.Send(sess.conn)
+}
 
-	w.HexString("cb10000000000000000000000000000000000000000000000400000000000000000000000000803f000000000000803f0000803f00000000000000000400bc01aa00000000000000000000803f0000803f0000803f8fc2353f0000803f0000803f0000803fe37b8bffafecefffafecefff584838ff00000000800000ef00ef00ee000103000000000000110000000000fe00063bb900d800ee00d400281bebe100e700f037230000000000640000000000000064000000f0000000000000002bd50000006400000000f9000000e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+// SCCharacterListPacket ...
+// TODO: Add character in argument
+func (sess *Session) SCCharacterListPacket(last bool) {
+	// f211 5f01 0100
+	w := packet.CreateEncWriter(SC.CharacterList, sess.conn.encSeq)
 
-	//Pers Info
-	w.Short(0x1234)    //LaborPower
-	w.Long(0x5bb45ff6) //lastLaborPowerModified
-	w.Short(0)         //DeathCount
-	w.Long(0x5bb45ff6) //deadTime
-	w.UInt(0)          //rezWaitDuration
-	w.Long(0x5bb45ff6) //rezTime
-	w.UInt(0)          //rezPenaltyDuration
-	w.Long(0x5bb45ff6) //lastWorldLeaveTime
-	w.Long(0)          //moneyAmount
-	w.Long(0)          //moneyAmount
-	w.Short(0)         //crimePoint
-	w.UInt(0)          //crimeRecord
-	w.Short(0)         //crimeScore
-	w.Long(0)          //deleteRequestedTime
-	w.Long(0)          //transferRequestedTime
-	w.Long(0)          //deleteDelay
-	w.UInt(0)          //consumedLp
-	w.Long(0)          //bmPoint
-	w.Long(0)          //moneyAmount
-	w.Long(0)          //moneyAmount
-	w.Byte(0)          //autoUseAApoint
-	w.UInt(1)          //prevPoint
-	w.UInt(1)          //point
-	w.UInt(0)          //gift
-	w.Long(0x5bc39811) // updated
-	w.Byte(0)          //forceNameChange
-	w.UInt(0)          //highAbilityRsc
+	w.Bool(last) //LastChar
+	w.Byte(0)    //TotalCount
+	/*
+		var charName string
+		if sess.accountID == 2 {
+			charName = "Rivestshamiradlemn"
+		} else {
+			charName = "Diffiehellman"
+		}
+		msg := "Hello"
 
+		w.UInt(0x2938)     //CharID 2938
+		w.String(charName) //CharName
+		w.Byte(1)          //Race
+		w.Byte(2)          //Gender
+		w.Byte(1)          //Level
+		w.UInt(370)        //HP
+		w.UInt(320)        //MP
+		w.UInt(179)        //zone_id
+		w.UInt(101)        //F(r)actionId
+		w.String(msg)      //msg
+		w.UInt(0)          //type
+		w.UInt(0)          //family
+		w.UInt(0x1180000)  //validFlags
+
+		//Appearance
+		w.UInt(0x4d7f)                     //
+		w.UInt(0x631c)                     //
+		w.UInt(0x21b)                      // HairColor
+		w.UInt(0)                          // twoToneHair
+		w.UInt(0xd0d01)                    // twoToneFirstWidth
+		w.UInt(0x4000000)                  // twoToneSecondWidth
+		w.UInt(0x3da12)                    //
+		w.UInt(0xc8000000)                 //
+		w.UInt(0x3c1b5)                    //
+		w.UInt(math.Float32bits(0x342c54)) // Float???????????
+
+		w.HexString("cb10000000000000000000000000000000000000000000000400000000000000000000000000803f000000000000803f0000803f00000000000000000400bc01aa00000000000000000000803f0000803f0000803f8fc2353f0000803f0000803f0000803fe37b8bffafecefffafecefff584838ff00000000800000ef00ef00ee000103000000000000110000000000fe00063bb900d800ee00d400281bebe100e700f037230000000000640000000000000064000000f0000000000000002bd50000006400000000f9000000e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+
+		//Pers Info
+		w.Short(0x1234)    //LaborPower
+		w.Long(0x5bb45ff6) //lastLaborPowerModified
+		w.Short(0)         //DeathCount
+		w.Long(0x5bb45ff6) //deadTime
+		w.UInt(0)          //rezWaitDuration
+		w.Long(0x5bb45ff6) //rezTime
+		w.UInt(0)          //rezPenaltyDuration
+		w.Long(0x5bb45ff6) //lastWorldLeaveTime
+		w.Long(0)          //moneyAmount
+		w.Long(0)          //moneyAmount
+		w.Short(0)         //crimePoint
+		w.UInt(0)          //crimeRecord
+		w.Short(0)         //crimeScore
+		w.Long(0)          //deleteRequestedTime
+		w.Long(0)          //transferRequestedTime
+		w.Long(0)          //deleteDelay
+		w.UInt(0)          //consumedLp
+		w.Long(0)          //bmPoint
+		w.Long(0)          //moneyAmount
+		w.Long(0)          //moneyAmount
+		w.Byte(0)          //autoUseAApoint
+		w.UInt(1)          //prevPoint
+		w.UInt(1)          //point
+		w.UInt(0)          //gift
+		w.Long(0x5bc39811) // updated
+		w.Byte(0)          //forceNameChange
+		w.UInt(0)          //highAbilityRsc
+	*/
 	w.Send(sess.conn)
 }
 

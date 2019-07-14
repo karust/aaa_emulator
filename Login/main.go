@@ -50,6 +50,8 @@ func (login *LoginServer) initializeDatabase(config Config) {
 func (login *LoginServer) initializeServer(config Config) {
 	login.Address = utils.MakeAdress(config.General.IP, config.General.Port)
 	login.Autologin = config.General.Autologin
+
+	login.GameServers = make(map[byte]*GameServer)
 	for _, serv := range config.Servers {
 		gameServer := GameServer{
 			Name:     serv.Name,
@@ -60,7 +62,7 @@ func (login *LoginServer) initializeServer(config Config) {
 			IsOnline: utils.BoolToByte(serv.IsOnline),
 			IP:       utils.ConvertIPtoBytes(serv.IP),
 			Port:     uint16(serv.Port)}
-		login.GameServers = append(login.GameServers, gameServer)
+		login.GameServers[byte(serv.ID)] = &gameServer
 	}
 }
 

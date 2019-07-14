@@ -1,7 +1,6 @@
 package main
 
 import "../common/packet"
-import "../common/utils"
 
 // LoginDenied ... Shows error :message with a title defined with :reason
 /*
@@ -69,9 +68,15 @@ func (sess *Session) LoginDenied(message string, reason byte) error {
 // TODO: Define params
 func (sess *Session) JoinResponse() error {
 	serial := packet.CreateWriter(0)
-	serial.Byte(1)       // AuthID
-	serial.Short(0)      // Reason
-	serial.Long(4719366) // "afs" from archerage
+	// serial.Byte(1)       // AuthID
+	// serial.Short(0)      // Reason
+	// serial.Long(4719366) // "afs" from archerage
+	serial.Short(1) // Reason
+	serial.Byte(0)
+	serial.UInt(0x480306) // afs
+	serial.Short(0)
+	serial.Byte(0)
+	serial.Byte(0) // Slot count
 	err := serial.Send(sess.Client)
 	return err
 }
@@ -80,9 +85,9 @@ func (sess *Session) JoinResponse() error {
 func (sess *Session) AuthResponse(accID uint, slotCount byte) error {
 	serial := packet.CreateWriter(3)
 	serial.Long(uint64(accID)) // Account ID
-	wsk, _ := utils.RandomHex(16)
-	serial.String(wsk)     // WSK
-	serial.Byte(slotCount) // Slot Count
+	//wsk, _ := utils.RandomHex(16)
+	serial.String("65CCBF5AF8DB8B633D3C03C5A8735601") // WSK
+	serial.Byte(slotCount)                            // Slot Count
 	err := serial.Send(sess.Client)
 	return err
 }

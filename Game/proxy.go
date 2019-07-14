@@ -39,7 +39,20 @@ func (sess *Session) FinishState(reader *packet.Reader) {
 	switch state {
 	case 0:
 		sess.ChangeState(1)
-		sess.State1()
+		sess.SCHackGuardRetAddrsRequestPacket(true, false, true, false)
+		sess.SetGameType("e_rainbow_field_3", 0, 1)
+		sess.SCInitialConfigPacket()
+		sess.SCTrionConfigPacket(true, "https://session.draft.integration.triongames.priv", "https://archeage.draft.integration.triongames.priv/commerce/purchase/credits/purchase-credits-flow.action")
+		// TODO: Payment should be datetime
+		sess.SCAccountInfoPacket(0, 0, 0, 0x5460)
+		sess.SCChatSpamConfigPacket()
+		sess.SCAccountAttributeConfigPacket()
+		sess.SCLevelRestrictionConfigPacket(10, 10, 10, 10, 10)
+		sess.SCTaxItemConfigPacket(0)
+		sess.SCInGameShopConfigPacket(1, 2, 0)
+		sess.SCGameRuleConfigPacket(0, 0)
+		sess.SCUnknownPacket0x215(1, time.Now().Unix())
+		sess.SCTaxItemConfig2Packet(0)
 	case 1:
 		sess.ChangeState(2)
 		//sess.State2()
@@ -63,41 +76,13 @@ func (sess *Session) FinishState(reader *packet.Reader) {
 	}
 }
 
-// SetGameType ... State(I)
-func (sess *Session) SetGameType() {
-	name := "e_rainbow_field_3"
-
-	w := packet.CreateProxyWriter(15)
-	w.String(name)
-	w.Long(0) // checksum
-	w.Byte(1) // immersive
+// SetGameType ...
+func (sess *Session) SetGameType(level string, checksum uint64, immersive byte) {
+	w := packet.CreateProxyWriter(0xF)
+	w.String(level)
+	w.Long(checksum)
+	w.Byte(immersive)
 	w.Send(sess.conn)
-}
-
-//Stage requests
-func (sess *Session) State1() {
-	//Enter to characters menu
-	// Test, copypasta
-	//1400dd05afe722865627f6cf97087265899fe9242175 --original
-	//h, _ := hex.DecodeString("1400dd05afe722865627f6cf97087265899fe92421752000dd020f001100655f7261696e626f775f6669656c645f330000000000000000015000dd055f20c6c282625271b0cb11257381d3e43840dba6f90b2c06a99043486eefcd4b6745f31f35e70901d0441d85a978ee825322f4c494643405d5a5754517e7b7875627f7c797704010e0b0115081b0a900dd052893a332ffe0a119356592c1b87d0d80a6e0105a6bba8a10367483c1ab3c4882a3f1145673bec8196e6492d9ee3f4690acf7111c72a0ca052a138bc0f02457ceeaba044766bec3172173c9d3f536418afec91e347486c3e0254b9dacbc16416abccd13257981c7ab25579cb3b905596bbbc2052472c8c0f5224398a0e2041e62a0c7162b66909cf3265197acf5175128b6d710217f92c5ab314b98b0b911236489dfef51e717472a00dd053565dd01d2a2724212e3b3835323f4c494643405b5f1754516e6b6866227f7c7a4704010e0b081517700dd05b397e33000eea3724212e2b4845524f4c595643505d7a6764616e7b7875767bed0a0704011e1b1815122f2c292623303d3a3744414e4b4855525f5c596663606d6a7774717e7b0805020f0c191613101d2a2724212e3b3835323f4c49465340ac6a5754566a4b3865727f7c781348ddcac8f8b99f20900dd051fb63b511041701c00dd054b63be04d5af754516e6b9895827f7c897704010e0b0815ec4f40e00dd055a2f3bc697704010e0b081510900dd05fab9b1511142700e00dd054f2d58c697704010e0b081512300dd05c5e87c815223f4c494643405d5a5754516e6b6865727f7c797704010e0b08151420a00dd05357cdc12e0b08151")
-	//sess.conn.Write(h)
-	//return
-
-	sess.World0x94()
-	sess.SetGameType()
-	sess.World0x34()
-	sess.World0x2c3()
-
-	sess.World_0xEC(false)
-	sess.World_0x281()
-	sess.World_0xBA()
-	sess.World_0x18a()
-	sess.World_0x1cc()
-	sess.World_0x30()
-	sess.World_0x1af()
-	sess.World_0x2cf()
-	sess.World_0x29c()
-	//sess.conn.encSeq = 0
 }
 
 func (sess *Session) State7() {

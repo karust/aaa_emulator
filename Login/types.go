@@ -13,7 +13,7 @@ type LoginServer struct {
 	Timeout          time.Duration
 	MaxCharacters    byte
 	CharExpanderItem byte
-	GameServers      []GameServer
+	GameServers      map[byte]*GameServer
 	DB               *sqlx.DB
 	Autologin        bool
 }

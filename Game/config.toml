@@ -2,6 +2,11 @@
 ip = "0.0.0.0"
 port = 1239
 
+[crypto]
+# Public RSA part
+modulus = "a38ab4ef39f6b852b8690298855a2b494d21af48b438228524db40b5abb1be65ea773f2116b65b74d113fdc3f7cf91a02e90cb858e20c6d954c46907b939ccefd8e8d8e46be96208a1aaa776a825dd2617a8fafe277032359c05aed96bb02e7d227448e81619c8e7991785a94f0330fced39c40f8dc55a001cbb9b426cbea86f"
+exponent = 65537
+
 [database]
 wipe = true # Wipe database and create new schema
 type = 1     # 0 - sqlite, 1 - PostgreSql 

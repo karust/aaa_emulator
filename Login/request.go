@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/rand"
 	"time"
 
 	"../common/packet"
@@ -51,7 +50,7 @@ func (sess *Session) ChallengeResponse2(parser *packet.Reader) error {
 
 	sess.Username = login
 	err = sess.JoinResponse()
-	err = sess.AuthResponse(user.ID, 3)
+	err = sess.AuthResponse(user.ID, 0)
 	return err
 }
 
@@ -67,8 +66,14 @@ func (sess *Session) ListWorld(parser *packet.Reader) error {
 func (sess *Session) EnterWorld(parser *packet.Reader) error {
 	parser.Long() // Flag
 	gameServerID := parser.Byte()
-	// TODO: Ask GS enter permission. Get cookie from GS
-	cookie := rand.Uint32()
-	sess.WorldCookiePacket(cookie, &loginServer.GameServers[gameServerID])
+
+	if gS, ok := loginServer.GameServers[gameServerID]; ok {
+		// TODO: Ask GS enter permission. Get cookie from GS
+		//cookie := rand.Uint32()
+		sess.WorldCookiePacket(0, gS)
+	} else {
+		// TODO: ACEnterWorldDeniedPacket
+		return errors.New("Chosen server not exist")
+	}
 	return nil
 }

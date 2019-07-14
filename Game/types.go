@@ -10,19 +10,22 @@ import (
 
 // GameServer ... Holds game server data
 type GameServer struct {
-	Address string
-	Timeout time.Duration
-	Online  uint
-	RSA     *crypt.CryptRSA
-	DB      *sqlx.DB
+	Address     string
+	PubModulus  []byte
+	PubExponent []byte
+	Timeout     time.Duration
+	Online      uint
+	RSA         *crypt.CryptRSA
+	DB          *sqlx.DB
 }
 
 // Connection ... Class for Connection
 type Connection struct {
 	net.Conn
-	IdleTimeout time.Duration
-	buffSize    int16
-	encSeq      *uint8
+	Timeout  time.Duration
+	buffSize int16
+
+	encSeq *uint8
 	//proxySeq    *uint8
 }
 

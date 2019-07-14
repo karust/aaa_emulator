@@ -10,6 +10,7 @@ import (
 
 	"../common/crypt"
 	"../common/packet"
+	CS "./opcodes/CS"
 )
 
 var sessions []*Session
@@ -22,40 +23,42 @@ func (s *GameServer) Listen() error {
 	if err != nil {
 		return err
 	}
-
 	defer listener.Close()
 
-	fmt.Printf("Game server started [%v]\n", s.Address)
+	log.Println("ArcheAge Game server started at", s.Address)
 
 	for {
-		newConn, err := listener.Accept()
+		client, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error accepting client:", err)
+			log.Println("Cannot establish connection:", err)
 			continue
 		}
 
 		conn := &Connection{
-			Conn:        newConn,
-			IdleTimeout: s.Timeout,
+			Conn:    client,
+			Timeout: s.Timeout,
 		}
+
+		// TODO: What is this? Kostyl?
 		var num uint8
 		conn.encSeq = &num
-		go handle(conn, s)
+		go handleSession(conn, s)
 	}
 }
 
-func handle(conn *Connection, serv *GameServer) {
-	fmt.Printf("[%v] new Connection\n", conn.RemoteAddr())
+func handleSession(conn *Connection, serv *GameServer) {
+	log.Println("Game session with:", conn.RemoteAddr().String())
 
+	// TODO: Remove or rework this
 	sess := &Session{conn: conn, kostyl: 1, alive: true, ingame: false}
-
 	defer func() {
 		conn.Close()
 		sess.alive = false
 		sess.ingame = false
 	}()
 
-	sessions = append(sessions, sess)
+	// TODO: Rework sessions, add lock, create class with methods
+	//sessions = append(sessions, sess)
 
 	var (
 		err     error
@@ -75,13 +78,17 @@ func handle(conn *Connection, serv *GameServer) {
 
 		switch subtype {
 		case 1:
+			reader.Byte() // crc
+			reader.Byte() // counter
 			opcode = reader.Short()
+
 			switch opcode {
-			case 0:
-				sess.X2EnterWorld(reader)
-			case 0xe17b:
-				sess.getKeys(reader, *serv.RSA)
-				//fmt.Println("0xe17b: getKeys, pers_info", opcode)
+			case CS.X2EnterWorld:
+				sess.CSX2EnterWorld(reader)
+			case CS.GetRsaAesKeys:
+				sess.CSGetRsaAesKeys(reader, *serv.RSA)
+			case 0x12d:
+				fmt.Println("[WORLD] Unknows packet:", opcode)
 			default:
 				fmt.Println("[WORLD] No opcode found:", opcode)
 			}

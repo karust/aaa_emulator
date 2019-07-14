@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
@@ -11,6 +13,8 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
+
+var gameServer *GameServer
 
 func (game *GameServer) initializeDatabase(config Config) {
 	var err error
@@ -45,6 +49,18 @@ func (game *GameServer) initializeDatabase(config Config) {
 
 func (game *GameServer) initializeServer(config Config) {
 	game.Address = utils.MakeAdress(config.General.IP, config.General.Port)
+
+	// Convert modulus
+	mod, err := hex.DecodeString(config.Crypto.Modulus)
+	if err != nil {
+		log.Fatalln("Wrong modulus of public key")
+	}
+	game.PubModulus = mod
+
+	// Convert exponent
+	byteModulus := make([]byte, 4)
+	binary.BigEndian.PutUint32(byteModulus, config.Crypto.Exponent)
+	game.PubExponent = append(make([]byte, 124), byteModulus...)
 }
 
 func main() {
@@ -59,8 +75,8 @@ func main() {
 		log.Fatalln("Config load error:")
 	}
 
-	gameServer := &GameServer{}
+	gameServer = &GameServer{}
 	gameServer.initializeDatabase(config)
 	gameServer.initializeServer(config)
-	//gameServer.Listen()
+	gameServer.Listen()
 }

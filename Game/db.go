@@ -207,8 +207,8 @@ CREATE TABLE IF NOT EXISTS portal_book_coords (
   PRIMARY KEY (id,owner)
 );
 
-DROP TABLE IF EXISTS portal_visited_district;
-CREATE TABLE IF NOT EXISTS portal_visited_district (
+DROP TABLE IF EXISTS portal_visited_districts;
+CREATE TABLE IF NOT EXISTS portal_visited_districts (
   id int NOT NULL,
   subzone int NOT NULL,
   owner int NOT NULL,
@@ -236,8 +236,8 @@ CREATE TABLE IF NOT EXISTS skills (
   PRIMARY KEY (id,owner)
 );
 
-DROP TABLE IF EXISTS cash_shop_item;
-CREATE TABLE cash_shop_item  (
+DROP TABLE IF EXISTS cash_shop_items;
+CREATE TABLE cash_shop_items  (
   id BIGSERIAL NOT NULL,
   uniq_id BIGINT NULL DEFAULT 0 ,
   cash_name varchar(255) NOT NULL ,

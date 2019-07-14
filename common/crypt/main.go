@@ -94,8 +94,9 @@ func (cr *CryptRSA) GetXorKey(raw []byte) uint {
 	}
 
 	head := binary.LittleEndian.Uint32(keyXORraw[:4])
-	keyXOR := (head^0x15a0248e)*head ^ 0x070f1f23&0xffffffff
-
+	//keyXOR := (head^0x15a0248e)*head ^ 0x070f1f23&0xffffffff // for 3.0
+	keyXOR := (head^0x15A0241F)*head ^ 0x70F1F23&0xffffffff // 3.5
+	//keyXOR := (head^0xFF217A9E)*head ^ 0x1F23070F&0xffffffff // smth else
 	return uint(keyXOR)
 }
 
