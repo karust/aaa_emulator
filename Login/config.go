@@ -15,9 +15,8 @@ type general struct {
 }
 
 type gameListener struct {
-	IP     string
-	Port   int
-	Secret string
+	IP   string
+	Port int
 }
 
 type database struct {
@@ -37,8 +36,9 @@ type server struct {
 	IP       string
 	Port     int
 	IsHidden bool `toml:"is_hidden"`
-	IsOnline bool `toml:"is_online"`
-	Type     byte
-	Color    byte
-	Load     byte
+	//IsOnline bool `toml:"is_online"`
+	Type   byte
+	Color  byte
+	Load   byte
+	Secret string
 }

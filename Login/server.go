@@ -68,8 +68,11 @@ func handleSession(client net.Conn) {
 		//	err = session.RequestAuthTW(reader)
 		case 0xD:
 			err = session.X2EnterWorld(reader)
-			//case 0xF:
-			//	err = session.RequestReconnect(reader)
+		//case 0xF:
+		//21000f000a00000008000000a07101000000000001f77f44ae080094de807db90e0000
+		//	err = session.RequestReconnect(reader)
+		default:
+			log.Println("Unknown opcode:", opcode)
 		}
 
 		// If during session occured some error - end it

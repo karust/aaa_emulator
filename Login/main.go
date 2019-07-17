@@ -49,7 +49,8 @@ func (login *LoginServer) initializeDatabase(config Config) {
 func (login *LoginServer) initializeServer(config Config) {
 	login.Address = utils.MakeAddress(config.General.IP, config.General.Port)
 	login.Autologin = config.General.Autologin
-	login.Clients = &ConnectionMap{}
+	login.Clients = NewConnectionMap()
+	login.ReconnTokens = NewReconnMap()
 	login.GameServers = make(map[byte]*GameServer)
 	login.GameConn = &GameConnection{}
 	for _, serv := range config.Servers {
@@ -59,10 +60,11 @@ func (login *LoginServer) initializeServer(config Config) {
 			Type:     serv.Type,
 			Color:    serv.Color,
 			Load:     serv.Load,
-			IsOnline: 0, //utils.BoolToByte(serv.IsOnline),
+			IsOnline: false, //utils.BoolToByte(serv.IsOnline),
 			IP:       serv.IP,
 			byteIP:   utils.ConvertIPtoBytes(serv.IP),
-			Port:     uint16(serv.Port)}
+			Port:     uint16(serv.Port),
+			Secret:   serv.Secret}
 		login.GameServers[byte(serv.ID)] = &gameServer
 	}
 }

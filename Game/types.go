@@ -18,6 +18,8 @@ type GameServer struct {
 	RSA         *crypt.CryptRSA
 	DB          *sqlx.DB
 	ID          byte
+	LoginConn   *LoginConnection
+	SessConn    *SessionMap
 }
 
 // Connection ... Class for Connection
@@ -35,6 +37,7 @@ type Session struct {
 	conn *Connection
 	//db   *gorm.DB
 	accountID    uint64
+	connID       uint32
 	uid          uint
 	cr           *crypt.CryptAES
 	kostyl       int

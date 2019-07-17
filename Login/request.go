@@ -77,7 +77,8 @@ func (sess *Session) X2EnterWorld(parser *packet.Reader) error {
 		return errors.New("Server not exist")
 	}
 
-	if gS.IsOnline == 1 {
+	if gS.IsOnline == true {
+		loginServer.Clients.Set(sess.ID, sess)
 		loginServer.GameConn.lgPlayerEnter(sess.AccountID, sess.ID, gS.ID)
 		return nil
 	}

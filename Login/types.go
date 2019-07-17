@@ -12,6 +12,7 @@ type LoginServer struct {
 	Address          string
 	GameConn         *GameConnection
 	Clients          *ConnectionMap
+	ReconnTokens     *ReconnTokens
 	NumConnections   uint64
 	Timeout          time.Duration
 	MaxCharacters    byte
@@ -28,10 +29,11 @@ type GameServer struct {
 	Type     byte   // stype
 	Color    byte   // scolor
 	Load     byte   // 0 - low, 1 - avg, 2 - high
-	IsOnline byte
+	IsOnline bool
 	byteIP   []byte
 	Port     uint16
 	IP       string
+	Secret   string
 }
 
 // Session ... Holds information about login session with client

@@ -20,4 +20,30 @@ const (
 	CharacterList            = 0x25B // 0x15f
 	RefreshInCharacterList   = 0x19e
 	ReconnectAuth            = 0x1da
+	ChatMessage              = 0x1db // 0x1ad
 )
+
+/*
+//                            3.0.3.0
+const (
+	EnterWorldResponse       = 0x0
+	HackGuardRetAddrsRequest = 0x094
+	InitialConfig            = 0x34
+	TrionConfig              = 0x2c3
+	AccountInfo              = 0x0ec
+	ChatSpamConfig           = 0x281
+	AccountAttributeConfig   = 0x0ba
+	LevelRestrictionConfig   = 0x18a
+	TaxItemConfig            = 0x1cc
+	InGameShopConfig         = 0x30
+	GameRuleConfig           = 0x1af
+	NationMemberAdd          = 0x12d
+	TaxItemConfig2           = 0x29C
+	AccountAttendance        = 0x8c
+	GetSlotCount             = 0x272
+	CharacterList            = 0x79
+	RefreshInCharacterList   = 0x1da
+	ReconnectAuth            = 0x1e5
+	ChatMessage              = 0x1f1
+)
+*/

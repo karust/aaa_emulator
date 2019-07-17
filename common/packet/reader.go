@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"../../common/crypt"
+	"github.com/damnever/bitarray"
 )
 
 // Reader ... Reads packets
@@ -109,6 +110,16 @@ func (pr *Reader) UInt() uint32 {
 	return binary.LittleEndian.Uint32(pr.Pack[pr.Offset : pr.Offset+4])
 }
 
+// Float ... read integer
+func (pr *Reader) Float() float32 {
+	if pr.Offset+4 > pr.Len {
+		pr.Err = true
+		return 0
+	}
+	defer func() { pr.Offset += 4 }()
+	return float32(binary.LittleEndian.Uint32(pr.Pack[pr.Offset : pr.Offset+4]))
+}
+
 // Int24 ... read integer24
 func (pr *Reader) Int24() int {
 	if pr.Offset+3 > pr.Len {
@@ -166,4 +177,24 @@ func (pr *Reader) Bool() bool {
 		return false
 	}
 	return true
+}
+
+// Pisc ...
+func (pr *Reader) Pisc(count int) []uint64 {
+	result := make([]uint64, count)
+	pish := bitarray.New(int(pr.Byte()))
+	for index := 0; index < count*2; index += 2 {
+		v, _ := pish.Get(index)
+		v1, _ := pish.Get(index + 1)
+		if v != 0 && v1 != 0 { // uint
+			result[index/2] = uint64(pr.UInt())
+		} else if v1 != 0 { // bc
+			result[index/2] = uint64(pr.Int24())
+		} else if v != 0 { // ushort
+			result[index/2] = uint64(pr.Short())
+		} else { // byte
+			result[index/2] = uint64(pr.Byte())
+		}
+	}
+	return result
 }

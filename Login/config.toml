@@ -6,7 +6,6 @@ autologin = false
 [gamelistener]
 ip = "127.0.0.1"
 port = 1238
-secret = "toor"
 
 [database]
 wipe = false # Wipe database and create new schema
@@ -27,19 +26,19 @@ port = 5432
     name = "First Server" 
     ip = "92.255.199.47"
     port = 1239
-    is_online = true
     is_hidden = false
     type     = 1   # 01- FRESH, 02-UNITED, 03-UNITED
 	color   = 0    # 00-BLUE, 01-GREEN, 02-VIOLET, 08-RED
 	load     = 1   # 0 - low, 1 - avg, 2 - high
+    secret = "toor1"
 
     # [servers.2]
     # id = 1
     # name = "Second Server" 
     # ip = "127.0.0.1"
     # port = 1240
-    # is_online = true
     # is_hidden = false
     # type     = 3
     # color   = 2
     # load     = 0   # 0 - low, 1 - avg, 2 - high
+    # secret = "toor2"

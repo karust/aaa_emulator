@@ -14,11 +14,12 @@ import (
 
 // LoginConnection ... Connetion of Game server with Login
 type LoginConnection struct {
-	address string
-	conn    net.Conn
-	encSeq  *uint8
-	secret  string
-	isAuth  bool
+	address  string
+	conn     net.Conn
+	encSeq   *uint8
+	secret   string
+	isAuth   bool
+	confSave Config
 }
 
 // Initialize ... check if there is Login server and establish connection
@@ -29,26 +30,29 @@ func (login *LoginConnection) Initialize(config Config) (err error) {
 	if err != nil {
 		return err
 	}
-	conn.Close()
+	//defer conn.Close()
 
 	login.secret = config.Login.Secret
+	login.conn = conn
 	num := uint8(0)
 	login.encSeq = &num
 	accounts = NewAccountsMap()
+	login.confSave = config
+
+	// Send authentication message to Login server after 2 seconds
+	go func() {
+		time.Sleep(time.Second * 3)
+		login.glRegister()
+	}()
+
 	return nil
 }
 
 // Listen ... Listens for messages from Login server
 func (login *LoginConnection) Listen() {
-	log.Println("[LoginConnection] Listenining from login server...")
-	login.conn, _ = net.Dial("tcp", login.address)
+	//login.conn, _ = net.Dial("tcp", login.address)
 	defer login.conn.Close()
-
-	// Send authentication message to Login server after 2 seconds
-	go func() {
-		time.Sleep(time.Second * 2)
-		login.glRegister()
-	}()
+	log.Println("[LoginConnection] Connected to login server at:", login.address)
 
 	var (
 		err    error
@@ -59,8 +63,10 @@ func (login *LoginConnection) Listen() {
 	for {
 		reader, err = packet.GetEncPacketReader(login.conn)
 		if err != nil {
-			log.Println("[GameConnection] Error reading packet", err)
-			break
+			log.Println("[LoginConnection] Login server is down, reconnection after 2 secs...")
+			time.Sleep(time.Second * 2)
+			login.Initialize(login.confSave)
+			continue
 		}
 		reader.Byte() // Seq
 		reader.Byte() // CRC8
@@ -71,25 +77,12 @@ func (login *LoginConnection) Listen() {
 			login.lgRegister(reader)
 		case 1:
 			login.lgPlayerEnter(reader)
+		case 2:
+			login.lgPlayerReconnect(reader)
 		default:
 			fmt.Println("[GameConnection] No such opcode:", opcode)
 		}
 	}
-}
-
-//glAuthLogin ... Authentication of Game server on Login side
-func (login *LoginConnection) glRegister() {
-	wr := packet.CreateEncWriter(0x0, login.encSeq)
-	wr.String(login.secret)
-	wr.Send(login.conn)
-}
-
-//glPlayerEnter ...
-func (login *LoginConnection) glPlayerEnter(connID uint32, gsID byte, result byte) {
-	wr := packet.CreateEncWriter(0x1, login.encSeq)
-	wr.UInt(connID)
-	wr.Byte(gsID)
-	wr.Byte(result)
 }
 
 //lgAuthLogin ... Result of authentication on Login server
@@ -105,6 +98,13 @@ func (login *LoginConnection) lgRegister(reader *packet.Reader) {
 	}
 }
 
+//glAuthLogin ... Authentication of Game server on Login side
+func (login *LoginConnection) glRegister() {
+	wr := packet.CreateEncWriter(0x0, login.encSeq)
+	wr.String(login.secret)
+	wr.Send(login.conn)
+}
+
 // Login server tells that person wants to enter game server
 func (login *LoginConnection) lgPlayerEnter(reader *packet.Reader) {
 	accID := reader.Long()
@@ -114,5 +114,30 @@ func (login *LoginConnection) lgPlayerEnter(reader *packet.Reader) {
 	} else {
 		accounts.Set(accID, connID)
 		login.glPlayerEnter(connID, gameServer.ID, 0)
+	}
+}
+
+//glPlayerEnter ...
+func (login *LoginConnection) glPlayerEnter(connID uint32, gsID byte, result byte) {
+	wr := packet.CreateEncWriter(0x1, login.encSeq)
+	wr.UInt(connID)
+	wr.Byte(gsID)
+	wr.Byte(result)
+	wr.Send(login.conn)
+}
+
+func (login *LoginConnection) glPlayerReconnect(gsID byte, accID uint64, connID uint32) {
+	wr := packet.CreateEncWriter(0x2, login.encSeq)
+	wr.Byte(gsID)
+	wr.Long(accID)
+	wr.UInt(connID)
+	wr.Send(login.conn)
+}
+
+func (login *LoginConnection) lgPlayerReconnect(reader *packet.Reader) {
+	connID := reader.UInt()
+	if sess, ok := gameServer.SessConn.Get(connID); ok {
+		fmt.Println("lgPlayerReconnect", sess.connID, sess.uid)
+		sess.SCReconnectAuth(sess.connID)
 	}
 }

@@ -49,7 +49,7 @@ func (game *GameServer) initializeDatabase(config Config) {
 
 func (game *GameServer) initializeServer(config Config) {
 	game.Address = utils.MakeAddress(config.General.IP, config.General.Port)
-
+	game.SessConn = NewSessionMap()
 	// Convert modulus
 	mod, err := hex.DecodeString(config.Crypto.Modulus)
 	if err != nil {
@@ -76,15 +76,16 @@ func main() {
 		log.Fatalln("Config load error:", configPath)
 	}
 
+	gameServer = &GameServer{}
 	// Connect to Login server
-	loginConn := LoginConnection{}
-	if err := loginConn.Initialize(config); err != nil {
+	gameServer.LoginConn = &LoginConnection{}
+	if err := gameServer.LoginConn.Initialize(config); err != nil {
 		log.Fatalln("Cannot establish connection with Login server, check Address!")
 	}
-	go loginConn.Listen()
+	go gameServer.LoginConn.Listen()
 
 	// Initialize Database and Game Server
-	gameServer = &GameServer{}
+
 	gameServer.initializeDatabase(config)
 	gameServer.initializeServer(config)
 	gameServer.Listen()

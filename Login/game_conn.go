@@ -12,7 +12,6 @@ import (
 // GameConnection ... Communication with Game servers
 type GameConnection struct {
 	address  string
-	secret   string
 	encSeq   *uint8
 	IDtoConn map[byte]net.Conn
 }
@@ -21,7 +20,6 @@ type GameConnection struct {
 func (game *GameConnection) Initialize(config Config) error {
 	log.Println("[GameConnection] Launching Game Connection listener...")
 	game.address = utils.MakeAddress(config.GameListener.IP, config.GameListener.Port)
-	game.secret = config.GameListener.Secret
 	num := uint8(0)
 	game.encSeq = &num
 	game.IDtoConn = make(map[byte]net.Conn)
@@ -45,29 +43,34 @@ func (game *GameConnection) Listen() {
 			continue
 		}
 
-		allowed, id := game.checkIP(connection)
-		if !allowed {
-			log.Println("[GameConnection] IP not allowed: ", err)
-			connection.Close()
-		}
+		//allowed, id := game.checkIP(connection)
+		//if !allowed {
+		//	log.Println("[GameConnection] IP not allowed: ", err)
+		//	connection.Close()
+		//}
 
-		go game.handleConnection(connection, id)
+		go game.handleConnection(connection)
 	}
 }
 
-func (game *GameConnection) handleConnection(conn net.Conn, id byte) {
+func (game *GameConnection) handleConnection(conn net.Conn) {
 	//defer conn.Close()
 
 	var (
-		err    error
-		opcode uint16
-		reader *packet.Reader
+		err          error
+		opcode       uint16
+		reader       *packet.Reader
+		id           byte
+		isRegistered bool
 	)
 
 	for {
 		reader, err = packet.GetEncPacketReader(conn)
 		if err != nil {
-			log.Println("[GameConnection] Error reading packet", err)
+			log.Println("[GameConnection] Connection to game server lost")
+			if isRegistered {
+				loginServer.GameServers[id].IsOnline = false
+			}
 			break
 		}
 		reader.Byte() // hash
@@ -76,7 +79,8 @@ func (game *GameConnection) handleConnection(conn net.Conn, id byte) {
 		opcode = reader.Short()
 		switch opcode {
 		case 0:
-			game.glRegisterGameServer(conn, reader, id)
+			id = game.glRegisterGameServer(conn, reader)
+			isRegistered = true
 		case 1:
 			game.glPlayerEnter(conn, reader)
 		case 2:
@@ -90,33 +94,50 @@ func (game *GameConnection) handleConnection(conn net.Conn, id byte) {
 }
 
 // Check if Game server IP is in allowed
-func (game *GameConnection) checkIP(connection net.Conn) (bool, byte) {
-	remoteIP := connection.RemoteAddr().(*net.TCPAddr).IP
-	ip := utils.ConvertIPfromBytes(remoteIP)
-	fmt.Println(ip)
+// func (game *GameConnection) checkIP(connection net.Conn) (bool, byte) {
+// 	remoteIP := connection.RemoteAddr().(*net.TCPAddr).IP
+// 	ip := utils.ConvertIPfromBytes(remoteIP)
+// 	fmt.Println(ip)
+// 	for _, gS := range loginServer.GameServers {
+// 		if ip == gS.IP || ip == "127.0.0.1" {
+// 			fmt.Println(gS)
+// 			game.IDtoConn[gS.ID] = connection
+// 			return true, gS.ID
+// 		}
+// 	}
+// 	return false, 0
+//}
+
+// Register Game Server
+func (game *GameConnection) glRegisterGameServer(conn net.Conn, reader *packet.Reader) byte {
+	secret := reader.String()
+
 	for _, gS := range loginServer.GameServers {
-		if ip == gS.IP || ip == "127.0.0.1" {
-			fmt.Println(gS)
-			game.IDtoConn[gS.ID] = connection
-			return true, gS.ID
+		if secret == gS.Secret {
+			game.IDtoConn[gS.ID] = conn
+			loginServer.GameServers[gS.ID].IsOnline = true
+			game.lgRegisterResponse(true, gS.ID)
+			return gS.ID
 		}
 	}
-	return false, 0
+	conn.Close()
+	return 0xff
 }
 
 // Register Game Server
-func (game *GameConnection) glRegisterGameServer(conn net.Conn, reader *packet.Reader, id byte) {
-	secret := reader.String()
-	if secret == game.secret {
-		fmt.Println(id)
-		fmt.Println(loginServer.GameServers)
-		loginServer.GameServers[id].IsOnline = 1
-		game.lgRegisterResponse(true, id)
-		return
-	}
-	game.lgRegisterResponse(false, id)
-	conn.Close()
-	return
+func (game *GameConnection) lgRegisterResponse(result bool, gsID byte) {
+	wr := packet.CreateEncWriter(0x0, game.encSeq)
+	wr.Bool(result)
+	wr.Byte(gsID)
+	wr.Send(game.IDtoConn[gsID])
+}
+
+// Player wants to enter game server
+func (game *GameConnection) lgPlayerEnter(accID uint64, connID uint32, gsID byte) {
+	wr := packet.CreateEncWriter(0x1, game.encSeq)
+	wr.Long(accID)
+	wr.UInt(connID)
+	wr.Send(game.IDtoConn[gsID])
 }
 
 // Player entered game server
@@ -125,6 +146,7 @@ func (game *GameConnection) glPlayerEnter(conn net.Conn, reader *packet.Reader) 
 	gsID := reader.Byte()
 	result := reader.Byte()
 
+	//fmt.Println("[glPlayerEnter] ", connID, gsID, result)
 	var sess *Session
 	var ok bool
 	if sess, ok = loginServer.Clients.Get(connID); !ok {
@@ -141,6 +163,7 @@ func (game *GameConnection) glPlayerEnter(conn net.Conn, reader *packet.Reader) 
 		sess.ACWorldCookiePacket(connID, gS)
 	} else if result == 1 {
 		sess.LoginDenied("Currently active", 33)
+		fmt.Println("[glPlayerEnter] currently active:", connID)
 	} else {
 		sess.LoginDenied("Unknown result", 25)
 		fmt.Println("[glPlayerEnter] unknown result:", result)
@@ -149,7 +172,21 @@ func (game *GameConnection) glPlayerEnter(conn net.Conn, reader *packet.Reader) 
 
 // Player reconnected login server
 func (game *GameConnection) glPlayerReconnect(conn net.Conn, reader *packet.Reader) {
+	gsID := reader.Byte()
+	accID := reader.Long()
+	connID := reader.UInt() // token
+	fmt.Println("glPlayerReconnect", connID)
+	if _, ok := loginServer.ReconnTokens.Get(accID); !ok {
+		loginServer.ReconnTokens.Set(accID, connID)
+	}
+	game.lgPlayerReconnect(connID, gsID)
+}
 
+// Player reconnected login server
+func (game *GameConnection) lgPlayerReconnect(token uint32, gsID byte) {
+	wr := packet.CreateEncWriter(0x2, game.encSeq)
+	wr.UInt(token)
+	wr.Send(game.IDtoConn[gsID])
 }
 
 // Register Game Server
@@ -163,28 +200,4 @@ func (game *GameConnection) glServerState(conn net.Conn, reader *packet.Reader) 
 	} else {
 		log.Println("[glServerState] error")
 	}
-}
-
-// Register Game Server
-func (game *GameConnection) lgRegisterResponse(result bool, gsID byte) {
-	wr := packet.CreateEncWriter(0x0, game.encSeq)
-	wr.Bool(result)
-	wr.Byte(gsID)
-	wr.Send(game.IDtoConn[gsID])
-}
-
-// Player wants to enter game server
-func (game *GameConnection) lgPlayerEnter(accID uint64, connID uint32, gsID byte) {
-	wr := packet.CreateEncWriter(0x1, game.encSeq)
-	wr.Long(accID)
-	wr.UInt(connID)
-	fmt.Println(gsID, game.IDtoConn)
-	wr.Send(game.IDtoConn[gsID])
-}
-
-// Player reconnected login server
-func (game *GameConnection) lgPlayerReconnect(conn net.Conn, token uint32, gsID byte) {
-	wr := packet.CreateEncWriter(0x2, game.encSeq)
-	wr.UInt(token)
-	wr.Send(game.IDtoConn[gsID])
 }

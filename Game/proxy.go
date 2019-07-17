@@ -17,10 +17,11 @@ func (sess *Session) Pong(reader *packet.Reader) {
 	w := packet.CreateProxyWriter(19)
 	w.Long(tm)
 	w.Long(when)
-	w.Long(123)                              // elapsed
+	w.Long(0)                                // elapsed
 	w.Long(uint64(time.Now().Unix()) * 1000) // remote
 	w.UInt(uint32(local))
 	w.UInt(uint32(time.Now().Unix())) // world
+	time.Sleep(time.Millisecond * 250)
 	w.Send(sess.conn)
 }
 
@@ -103,10 +104,4 @@ func (sess *Session) State7() {
 	}
 	w.HexString(payload)
 	w.SendRaw(sess.conn)
-	sess.ingame = true
-	if sess.accountID == 1 {
-		sess.MovePlayer(0x12ba5, 8020487, 7752959, 221215)
-	} else {
-		sess.MovePlayer(0x113e7, 8020487, 7752959, 221215)
-	} // e71301
 }

@@ -1,6 +1,8 @@
 package main
 
-import "../common/packet"
+import (
+	"../common/packet"
+)
 
 // LoginDenied ... Shows error :message with a title defined with :reason
 /*
@@ -54,14 +56,12 @@ import "../common/packet"
    47 = "congested_server";
    48 = "invalid_mac";
 */
-func (sess *Session) LoginDenied(message string, reason byte) error {
+func (sess *Session) LoginDenied(message string, reason byte) {
 	serial := packet.CreateWriter(12)
 	serial.Byte(reason)
 	serial.Short(0)
 	serial.String(message)
 	serial.Send(sess.Client)
-	err := serial.Send(sess.Client)
-	return err
 }
 
 // JoinResponse ...
@@ -102,29 +102,36 @@ func (sess *Session) WorldListPacket() error {
 		serial.Byte(loginServer.GameServers[i].Type)
 		serial.Byte(loginServer.GameServers[i].Color)
 		serial.String(loginServer.GameServers[i].Name)
-		serial.Byte(loginServer.GameServers[i].IsOnline)
-		serial.Byte(loginServer.GameServers[i].Load)
-		serial.Byte(3) // None
-		serial.Byte(0) // Nuian
-		serial.Byte(3) // Fairy
-		serial.Byte(0) // Dwarf
-		serial.Byte(0) // Elf
-		serial.Byte(0) // Hariharan
-		serial.Byte(0) // Ferre
-		serial.Byte(3) // Returned
-		serial.Byte(0) // Warlocks
+		serial.Bool(loginServer.GameServers[i].IsOnline)
+		if loginServer.GameServers[i].IsOnline {
+			serial.Byte(loginServer.GameServers[i].Load)
+			serial.Byte(3) // None
+			serial.Byte(0) // Nuian
+			serial.Byte(3) // Fairy
+			serial.Byte(0) // Dwarf
+			serial.Byte(0) // Elf
+			serial.Byte(0) // Hariharan
+			serial.Byte(0) // Ferre
+			serial.Byte(3) // Returned
+			serial.Byte(0) // Warlocks
+		}
 	}
 	serial.Byte(0) // Char Count
 	/*
-		serial.Long(character.AccountId)
-		serial.Byte(character.GsId)
-		serial.UInt(character.Id)
-		serial.String(character.Name)
-		serial.Byte(character.Race)
-		serial.Byte(character.Gender)
-		guid, _ := randomHex(8)
-		serial.String(guid)
-		serial.Long(0) //v
+		if (_characters.Count > 0)
+		{
+			foreach (var character in _characters)
+			{
+				stream.Write(character.AccountId);
+				stream.Write(character.GsId);
+				stream.Write(character.Id);
+				stream.Write(character.Name);
+				stream.Write(character.Race);
+				stream.Write(character.Gender);
+				stream.Write(new byte[16], true); //guid
+				stream.Write(0L); //v
+			}
+		}
 	*/
 	err := serial.Send(sess.Client)
 
@@ -134,7 +141,7 @@ func (sess *Session) WorldListPacket() error {
 // ACWorldCookiePacket ... Sends IP of chosen game server and cookie to enter
 func (sess *Session) ACWorldCookiePacket(cookie uint32, gameServer *GameServer) error {
 	serial := packet.CreateWriter(0xA)
-	serial.UInt(cookie)
+	serial.UInt(cookie + 1)
 	//serial.Bytes(gameServer.IP) need reverse it
 	serial.Byte(gameServer.byteIP[3])
 	serial.Byte(gameServer.byteIP[2])

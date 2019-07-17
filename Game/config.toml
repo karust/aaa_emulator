@@ -5,7 +5,7 @@ port = 1239
 [login]
 ip = "127.0.0.1"
 port = 1238
-secret = "toor"
+secret = "toor1"
 
 [crypto]
 # Public RSA part

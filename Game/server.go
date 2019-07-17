@@ -97,8 +97,8 @@ func handleSession(conn *Connection, serv *GameServer) {
 			switch opcode {
 			case 1:
 				sess.FinishState(reader)
-			case 18:
-				sess.Pong(reader)
+			case 18: // PingPacket
+				go sess.Pong(reader)
 			default:
 				fmt.Println("[PROXY] No opcode found:", opcode)
 			}

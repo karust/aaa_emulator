@@ -7,20 +7,15 @@ import (
 
 	"../common/crypt"
 	"../common/packet"
-	"./objects"
+	"./objects/character"
+	"./objects/charmodel"
 )
-
-func intInSlice(a int, list []int) bool {
-	for _, b := range list {
-		if b == a {
-			return true
-		}
-	}
-	return false
-}
 
 // CSX2EnterWorld ... opc=0, type(H), pFrom(I), pTo(I), accID(I), cookie(Q)
 func (sess *Session) CSX2EnterWorld(reader *packet.Reader) {
+	// 7a050000 7a050000 a071010000000000 1459ac49 ffffffff 00a7 86050000 00000000 0000000000000000
+	// 7a050000 7a050000 a071010000000000 6f74cebd ffffffff 00a7 86050000 00000000 0000000000000000
+	// fe040000 fe040000 0b00000000000000 00000000 ffffffff 00c0 39050000 00000000 0000000000000000
 	pFrom := reader.UInt()
 	pTo := reader.UInt()
 	accountID := reader.Long()
@@ -30,17 +25,26 @@ func (sess *Session) CSX2EnterWorld(reader *packet.Reader) {
 	revision := reader.UInt()
 	index := reader.UInt()
 
-	fmt.Println("[GAME, X2EnterWorld]:", pFrom, pTo, accountID, cookie, zoneID, tb, revision, index)
+	fmt.Println("[X2EnterWorld]:", pFrom, pTo, accountID, cookie, zoneID, tb, revision, index)
 	if connID, ok := accounts.Get(uint64(accountID)); ok {
-		fmt.Println(connID, cookie, connID == cookie)
+		sess.connID = connID
+	} else {
+		fmt.Println("[X2EnterWorld] No such accountID", accountID)
+		//sess.conn.Close()
+		//return
 	}
 
 	// TODO: Check if authorized here
+	if sess.connID != cookie {
+		fmt.Println("[X2EnterWorld] Entrance not permitted", sess.connID)
+		//sess.conn.Close()
+	}
+	fmt.Println("[X2EnterWorld] Entrance permitted", sess.connID)
 	// TODO: Load char data from DB
-
+	gameServer.SessConn.Set(cookie, sess)
 	sess.accountID = accountID
 
-	sess.SCEnterWorldResponsePacket(0, false, 0, 1250)
+	sess.SCX2EnterWorldResponsePacket(0, sess.connID, 1250)
 	sess.ChangeState(0)
 }
 
@@ -94,8 +98,8 @@ func (sess *Session) CSCreateCharacter(reader *packet.Reader) {
 	}
 
 	// Custom model
-	charModel := objects.CharacterModel{}
-	charModel.Parse(reader)
+	model := charmodel.New()
+	model.Parse(reader)
 
 	ability1 := reader.Byte()
 	ability2 := reader.Byte()
@@ -104,6 +108,11 @@ func (sess *Session) CSCreateCharacter(reader *packet.Reader) {
 	introZoneID := reader.Int()
 
 	fmt.Println(name, race, gender, items, ability1, ability2, ability3, level, introZoneID)
+
+	//CharacterManager.Instance.Create(Connection, name, race, gender, items, customModel, ability1);
+	// Check and save character
+	char := character.New()
+	char.Create(name, race, gender, ability1, items, model)
 }
 
 // CSSecurityReport ... Some message related to securuty violation?
@@ -164,16 +173,13 @@ func (sess *Session) CSLeaveWorld(reader *packet.Reader) {
 		// connection.LeaveTask = new LeaveWorldTask(connection, type);
 		// TaskManager.Instance.Schedule(connection.LeaveTask, TimeSpan.FromSeconds(10));
 	case 2:
-		// if (connection.State == GameState.Lobby)
-		// {
-		// 	var gsId = AppConfiguration.Instance.Id;
-		// 	LoginNetwork
-		// 		.Instance
-		// 		.GetConnection()
-		// 		.SendPacket(new GLPlayerReconnectPacket(gsId, connection.AccountId, connection.Id));
-		// }
-		sess.SCReconnectAuth(0x0)
+		sess.SCChatMessage(-1, 0, "Good-bye!", 0, 0)
+		//gameServer.LoginConn.glPlayerReconnect(gameServer.ID, sess.accountID, sess.connID)
+		//gameServer.SessConn.Remove(sess.connID)
+
+		sess.SCReconnectAuth(0xf9a8b711)
 		fmt.Println("CSLeaveWorld, Choose server:", leaveType)
+
 	default:
 		fmt.Println("CSLeaveWorld, Unknown type:", leaveType)
 	}
@@ -184,56 +190,3 @@ func (sess *Session) CSRefreshInCharacterList(reader *packet.Reader) {
 	fmt.Println("CSRefreshInCharacterList")
 	sess.SCRefreshInCharacterList()
 }
-
-/*
-func (sess *Session) OnMovement(pack []byte) {
-	reader := packet.CreateReader(pack)
-	reader.Byte()
-	reader.Byte()
-	reader.Short() // op :=
-	reader.Int24() // bc :=
-	reader.Byte()  // _type :=
-	reader.Int()   // time :=
-	reader.Byte()  // flags :=
-
-	posX := reader.Int24()
-	posY := reader.Int24()
-	posZ := reader.Int24()
-	velX := reader.Short()
-	velY := reader.Short()
-	velZ := reader.Short()
-	rotX := reader.Byte()
-	rotY := reader.Byte()
-	rotZ := reader.Byte()
-	aDmX := reader.Byte()
-	aDmY := reader.Byte()
-	aDmZ := reader.Byte()
-	reader.Byte() // aStace :=
-	reader.Byte() // aAlertness :=
-	reader.Byte() // aFlags :=
-	//fmt.Println(posX, posY, posZ)
-	//fmt.Println(rotX, rotY, rotZ)
-	// Escaping compiling error
-	aDmX = aDmX
-	aDmY = aDmY
-	aDmZ = aDmZ
-	velX = velX
-	velY = velY
-	velZ = velZ
-
-	go sess.MovementReply(pack, uint32(posX), uint32(posY), uint32(posZ), uint16(rotX), uint16(rotY), uint16(rotZ))
-}
-
-
-func (sess *Session) MovementReply(pack []byte, x, y, z uint32, rx, ry, rz uint16) {
-	for i := range sessions {
-		if sessions[i].alive && sessions[i].ingame && sess != sessions[i] {
-			if !intInSlice(sess.accountID, sessions[i].visibleChars) {
-				sessions[i].visibleChars = append(sessions[i].visibleChars, sess.accountID)
-				sessions[i].UnitState0x8d(x, y, z, rx, ry, rz, sess)
-			}
-			sessions[i].World_dd01_0x162(pack, sess)
-		}
-	}
-}
-*/

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"time"
 
@@ -10,13 +10,14 @@ import (
 	"../common/packet"
 )
 
-// SCEnterWorldResponsePacket ... Provides RSA public key to client
-func (sess *Session) SCEnterWorldResponsePacket(reason uint16, gm bool, token uint, port uint16) {
+// SCX2EnterWorldResponsePacket ... Provides RSA public key to client
+func (sess *Session) SCX2EnterWorldResponsePacket(reason uint16, token uint32, port uint16) {
+	// 2800000000005e7dbde0e20493652f5d000000004cffffff0401040100040000ba26f7dc17d1e5b614bc1d194c0cd4c4d010ebafde2960c89c3bcf3979cd5ade6d99634b69e24dce76e0b58b6f9e23c0734c0213b5c0291644636d24b9ff12cec858ece1faee4a050c94fa728fe01a7e50d315b7b2d444c6360cb677cd0a659f28a84108c876dc7aa59402bf6dde04405b1e57893978124e65cbaa67793604b100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100012fc7ff5c67d3 01000000
 	w := packet.CreateEncWriter(SC.EnterWorldResponse, sess.conn.encSeq)
-
+	fmt.Println("SCEnterWorldResponsePacket", token)
 	w.Short(reason) // Reason
-	//w.Bool(gm)      // GM, no such field in 3.5
-	w.UInt(0x5933b51b)                // SC
+	//w.Bool(false)                     // GM, no such field in 3.5
+	w.UInt(0x1)                       //w.UInt(token + 1)                 // SC
 	w.Short(port)                     // SP
 	w.Long(uint64(time.Now().Unix())) // WF
 	w.UInt(0xffffff4c)                // TZ
@@ -28,11 +29,11 @@ func (sess *Session) SCEnterWorldResponsePacket(reason uint16, gm bool, token ui
 	w.Bytes(gameServer.PubExponent)
 
 	// TODO: IP Adress and Port of client??
-	w.Byte(92) // natAddr (remote client address)
-	w.Byte(255)
-	w.Byte(199)
-	w.Byte(47)
-	w.Short(49494) // natPort (remote client port)
+	w.Byte(127) // natAddr (remote client address)
+	w.Byte(0)
+	w.Byte(0)
+	w.Byte(1)
+	w.Short(25375) // natPort (remote client port)
 	w.Int(1)       // authority, present in 3.5
 	w.Send(sess.conn)
 }
@@ -363,111 +364,65 @@ func (sess *Session) SCRefreshInCharacterList() {
 }
 
 // SCReconnectAuth ... Sends cookie (token) to client to reconnect to login server
-func (sess *Session) SCReconnectAuth(cookie int32) {
+func (sess *Session) SCReconnectAuth(cookie uint32) {
+	// 1e13 3102 f77f44ae
 	w := packet.CreateEncWriter(SC.ReconnectAuth, sess.conn.encSeq)
-	// TODO: Implement obtaining of token from Login server
-	w.Int(cookie)
+	fmt.Println("SCReconnectAuth", cookie)
+	w.UInt(cookie)
 	w.Send(sess.conn)
 }
 
-//Movement Packet
-func (sess *Session) World_dd01_0x162(pack []byte, senderSess *Session) {
-	print(hex.EncodeToString(pack[4:37]))
-	w := packet.CreateWriter(0x1dd)
-	w.Short(0)
-	w.Short(0x162)
-	w.Short(1)
-	w.UInt24(0x66db + uint32(senderSess.accountID))
-	w.Bytes(pack[7:38])
+//  SCChatMessage ... TODO: Implement arguments (character)
+func (sess *Session) SCChatMessage(chtype int16, character byte, message string, ability int, langType byte) {
+	w := packet.CreateEncWriter(SC.ChatMessage, sess.conn.encSeq)
+	// a512 ad01 feff 0000 00000000 000000 00000000 00 00 00000000 0000 0900 476f6f642d62796521 00000000 00000000 00
+	fmt.Println("SCChatMessage")
+	//w.Short(uint16(chtype))
+	//w.Short(0)       // chat
+	w.Int(0xfffe)
+	w.UInt(0)        // char.factionID
+	w.UInt24(0)      // objID
+	w.Int(0)         // char.ID
+	w.Byte(langType) //
+	w.Byte(0)        // race
+	w.Int(0)         // type, factionID
+	w.String("")     // Char name
+	w.String(message)
 
-	w.Send(sess.conn)
-}
-
-func (sess *Session) MovePlayer(bc, x, y, z uint32) {
-	w := packet.CreateWriter(0x1dd)
-	w.Short(0)
-	w.Short(0x162)
-	w.Short(1)
-	w.UInt24(bc)
-	w.Byte(1)   // type
-	w.UInt(0)   //tine?
-	w.Byte(0)   //flags
-	w.UInt24(x) //pos
-	w.UInt24(y)
-	w.UInt24(z)
-	w.Short(0) //vel xyz
-	w.Short(0)
-	w.Short(0)
-	w.Byte(0) //rot
 	w.Byte(0)
 	w.Byte(0)
-	w.UInt24(0) // a.dm.xyz
-	w.Byte(2)   //a.stace
-	w.UInt24(0) //
-	//w.Bytes(pack[7:38])
-
-	w.Send(sess.conn)
-}
-
-//?        id     type time     fg pos XYZ              vel XYZ         rot XYZ   a.dmxyz   a.stace,alertness,flags   ???
-//7d148400 a52b01 01   3f400800 00 011d7b c4db77 ae0703 0000 0000 1efd  00 00 39  00 00 00  02 00 00
-
-//Display Unit
-func (sess *Session) UnitState0x8d(x, y, z uint32, rx, ry, rz uint16, senderSess *Session) {
-	w := packet.CreateEncWriter(0x8d, sess.conn.encSeq)
-	w.UInt24(0x66db + uint32(senderSess.accountID)) // LiveID
-
-	if senderSess.accountID == 1 {
-		w.String("Diffiehellman") // name
-	} else {
-		w.String("RivestShamirAdlemn") // name
-	}
-	w.Byte(0) // type 0 - player
-	if senderSess.accountID == 1 {
-		w.UInt(0x2938) //charID
-	} else {
-		w.UInt(0x2b086) // charID
-	}
-	w.Long(0)   //something... "V"
-	w.Short(0)  // String "master"
-	w.UInt24(x) // coords
-	w.UInt24(y)
-	w.UInt24(z)
-	w.UInt(0x3f800000) //Scale
-	w.Byte(1)          //Level
+	w.Byte(0)
+	w.Byte(0)
 	/*
-		w.UInt(0x0B000000) // ModelRef
+		for i := 0; i < 4; i++ {
+			linkType := 0
+			w.Byte(0) // linkType
+			if linkType > 0 {
+				w.Short(0) // start
+				w.Short(0) // length
+				if linkType == 1 {
 
-		//Inventory
-		w.HexString("62450000000000000000000000000000005363000000000000000000000000000000E0600000000000000000000000514900000000000000000000004863000000000000000000000000000000000000000000000000000000000000000000000000000000000000002607000000000000000000000000000000D9360000000000000000000000000000007E4D0000425E00000000000000000000000000001802000000000000000000000000000003AA0E00000100000000000000000000000000803F0000803F0000000000000000000000000000803F000000000000803F350200000000803F000000000000803F0000000021000000000000003CDA3C3FFFCDC2FFA25F42FFA25F42FF2B250DFF4B4756FF800000FAFDE6F7DFE4553AF82622176437F5009CD934D8FE090800EBF06220BA2325F30E14FDFF02F0DA0FF325D7F516EB0A25C141E1B0D3159CCE0F0315001EFEF545E601043C1427FFED430DD5272A140023FCCB000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
-		w.UInt(10)      //HP
-		w.UInt(10)      //MP
-		w.Short(0xffff) //Points?
-		w.Byte(0)       //isLooted
-		w.Byte(0)       //activeWeapon
-		w.Byte(0)       //learned SkillCount
-		//w.UInt(0x28AB)  //type
-		//w.Byte(1)       // level
-		//w.UInt(0x2A00)  // type
-		//w.Byte(1)       // level
-		w.UInt(0)   // learnedBuffs
-		w.Short(rx) //rotation xyz
-		w.Short(ry)
-		w.Short(rz)
-		w.HexString("0800A662" +
-			"01000000")
-		//factionID confirm
-		//ns.Write(npc.FactionId);
-		w.UInt(0x65)
+				} else if linkType == 3 {
 
-		w.HexString("0000000000000000")
+				} else if linkType == 4 {
+
+				}
+			}
+		}
+
+		w.Long(0)
+		w.UInt24(0) //senderObjId
+		w.Int(0)    // characterId
+		w.Byte(langType)
+		w.Byte(0)        // CharRace
+		w.Int(0)         // type
+		w.String("Game") // Name
+		w.String(message)
+
+
 	*/
 
-	//	if senderSess.accountID == 1 {
-	//		w.HexString(strings.Replace("00ffffffff0a000000000018017e4d0000455e0000180200000000000003dd02000000000000000000000000000000000000000000000100000000000000000000000000803f000000000000803f0000803f00000000000000005000003002aa0200000000001d000000803f0000803f0000803f0000803f0000803f0000803f0000803f000000005ab5f8ff5ab5f8ff3c2300ff603e48ff800000f5000011dc000b00000000170000000000f323000000003d0000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088900000007d0000ffff00000001000000000001d4460000eb110000000000006500000000000000000030000000000000000000ff00000000ff00000000ff00000000ff00000000ff00000000ff00000000ff00000000ff00000000ff00000000ff00000000ff01010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001e3c32002864070001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010100000000db66000000000001010008007264310000020b127a01000000011500000000db660086b00200010100040086410000012539010000", "86b00200", "38290000", 1))
-	//	} else {
-	w.HexString("00ffffffff0a000000000018017e4d0000455e0000180200000000000003dd02000000000000000000000000000000000000000000000100000000000000000000000000803f000000000000803f0000803f00000000000000005000003002aa0200000000001d000000803f0000803f0000803f0000803f0000803f0000803f0000803f000000005ab5f8ff5ab5f8ff3c2300ff603e48ff800000f5000011dc000b00000000170000000000f323000000003d0000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000088900000007d0000ffff00000001000000000001d4460000eb110000000000006500000000000000000030000000000000000000ff00000000ff00000000ff00000000ff00000000ff00000000ff00000000ff00000000ff00000000ff00000000ff00000000ff01010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001e3c32002864070001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010100000000db66000000000001010008007264310000020b127a01000000011500000000db660086b00200010100040086410000012539010000")
-	//	}
-
+	w.Int(0)  // ability
+	w.Byte(0) // option
 	w.Send(sess.conn)
 }

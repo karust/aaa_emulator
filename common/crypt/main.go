@@ -73,9 +73,8 @@ func (cr *CryptAES) DecXor(packet []byte, mkey uint) []byte {
 
 	//var cry = mul ^ ((uint)MakeSeq() + 0x75A02411) ^ 0xCE24CEE0;         // 5.3kr
 	//var cry = mul ^ ((uint)MakeSeq(ref seq) + 0x75B5BA52) ^ 0x7F7D9778;  // 3.5.5.3ru
-	//var cry = mul ^ ((uint)MakeSeq(ref seq) + 0x75A02435) ^ 0x28308228;    // 3.5.0.3 NA
-	//var cry = mul ^ ((uint)MakeSeq(ref seq) + 0x75a024a4) ^ 0xC3903b6a;  // 3.0.3.0ru
-	cry := mul ^ (uint(makeSeq(&cr.mSeq)) + 0x75A02435) ^ 0x28308228
+	cry := mul ^ (uint(makeSeq(&cr.mSeq)) + 0x75A02435) ^ 0x28308228 // 3.5.0.3 NA
+	//cry := mul ^ (uint(makeSeq(&cr.mSeq)) + 0x75a024a4) ^ 0xC3903b6a //3.0.3.0ru
 
 	offset := 4
 	if cr.Seq != 0 {
