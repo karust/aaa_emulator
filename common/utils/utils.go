@@ -8,7 +8,7 @@ import (
 )
 
 // MakeAdress ... Concatenates IP and Port to make Addres
-func MakeAdress(ip string, port int) string {
+func MakeAddress(ip string, port int) string {
 	return ip + ":" + strconv.Itoa(port)
 }
 
@@ -21,6 +21,16 @@ func ConvertIPtoBytes(ip string) []byte {
 		bytes = append(bytes, byte(convStr))
 	}
 	return bytes
+}
+
+// ConvertIPfromBytes ... Converts byte array IP value to string
+func ConvertIPfromBytes(ip []byte) string {
+	res := ""
+	for _, b := range ip {
+		r := strconv.Itoa(int(b))
+		res += "." + r
+	}
+	return res[1:]
 }
 
 // BoolToByte ... Converts Boolean value to Byte

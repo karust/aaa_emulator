@@ -49,6 +49,8 @@ func (sess *Session) ChallengeResponse2(parser *packet.Reader) error {
 	}
 
 	sess.Username = login
+	sess.AccountID = uint64(user.ID)
+	sess.ID = uint32(loginServer.NumConnections & 0xffffffff)
 	err = sess.JoinResponse()
 	err = sess.AuthResponse(user.ID, 0)
 	return err
@@ -62,18 +64,22 @@ func (sess *Session) ListWorld(parser *packet.Reader) error {
 	return err
 }
 
-// EnterWorld ... request to enter some server
-func (sess *Session) EnterWorld(parser *packet.Reader) error {
+// X2EnterWorld ... request to enter some server
+func (sess *Session) X2EnterWorld(parser *packet.Reader) error {
 	parser.Long() // Flag
 	gameServerID := parser.Byte()
 
-	if gS, ok := loginServer.GameServers[gameServerID]; ok {
-		// TODO: Ask GS enter permission. Get cookie from GS
-		//cookie := rand.Uint32()
-		sess.WorldCookiePacket(0, gS)
-	} else {
-		// TODO: ACEnterWorldDeniedPacket
-		return errors.New("Chosen server not exist")
+	// RequestEnterWorld
+	// If there is game server with such ID
+	var gS *GameServer
+	var ok bool
+	if gS, ok = loginServer.GameServers[gameServerID]; !ok {
+		return errors.New("Server not exist")
 	}
-	return nil
+
+	if gS.IsOnline == 1 {
+		loginServer.GameConn.lgPlayerEnter(sess.AccountID, sess.ID, gS.ID)
+		return nil
+	}
+	return errors.New("Server not active")
 }

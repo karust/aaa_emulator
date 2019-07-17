@@ -14,7 +14,6 @@ import (
 
 var loginServer *LoginServer
 
-//
 func (login *LoginServer) initializeDatabase(config Config) {
 	var err error
 	var db *sqlx.DB
@@ -48,10 +47,11 @@ func (login *LoginServer) initializeDatabase(config Config) {
 
 // Take config and initialize login server with games servers that it serves
 func (login *LoginServer) initializeServer(config Config) {
-	login.Address = utils.MakeAdress(config.General.IP, config.General.Port)
+	login.Address = utils.MakeAddress(config.General.IP, config.General.Port)
 	login.Autologin = config.General.Autologin
-
+	login.Clients = &ConnectionMap{}
 	login.GameServers = make(map[byte]*GameServer)
+	login.GameConn = &GameConnection{}
 	for _, serv := range config.Servers {
 		gameServer := GameServer{
 			Name:     serv.Name,
@@ -59,8 +59,9 @@ func (login *LoginServer) initializeServer(config Config) {
 			Type:     serv.Type,
 			Color:    serv.Color,
 			Load:     serv.Load,
-			IsOnline: utils.BoolToByte(serv.IsOnline),
-			IP:       utils.ConvertIPtoBytes(serv.IP),
+			IsOnline: 0, //utils.BoolToByte(serv.IsOnline),
+			IP:       serv.IP,
+			byteIP:   utils.ConvertIPtoBytes(serv.IP),
 			Port:     uint16(serv.Port)}
 		login.GameServers[byte(serv.ID)] = &gameServer
 	}
@@ -73,13 +74,24 @@ func main() {
 	}
 
 	// Try to load configuration file, if error then meaningless to proceed
+	log.Println("Loading config file...")
 	var config Config
 	if _, err := toml.DecodeFile(configPath, &config); err != nil {
-		log.Fatalln("Config load error:")
+		log.Fatalln("Config load error:", configPath)
 	}
 
+	// Initialize Database and Login server
+	log.Println("Launching Login Server...")
 	loginServer = &LoginServer{}
 	loginServer.initializeDatabase(config)
 	loginServer.initializeServer(config)
+
+	// Listen for Game servers
+	if err := loginServer.GameConn.Initialize(config); err != nil {
+		log.Fatalln("Cannot listen for Game Connection, check Address!")
+	}
+	go loginServer.GameConn.Listen()
+
+	// Run Login server
 	loginServer.Listen()
 }

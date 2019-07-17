@@ -1,12 +1,10 @@
 package main
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"log"
 	"net"
-	"strconv"
 
 	"../common/crypt"
 	"../common/packet"
@@ -14,6 +12,7 @@ import (
 )
 
 var sessions []*Session
+var accounts *AccountsMap
 
 // Listen ... Listens for new connections
 func (s *GameServer) Listen() error {
@@ -25,7 +24,7 @@ func (s *GameServer) Listen() error {
 	}
 	defer listener.Close()
 
-	log.Println("ArcheAge Game server started at", s.Address)
+	log.Println("Game server started at", s.Address)
 
 	for {
 		client, err := listener.Accept()
@@ -121,43 +120,28 @@ func handleSession(conn *Connection, serv *GameServer) {
 			}
 
 		case 5:
-			//reader := &packet.PacketReader{Pack: packBuf[4 : plen+4], Offset: 0}
 			decr := sess.cr.Decrypt(reader.Pack[2:], len(reader.Pack))
-			//seq := decr[0]  // seq?
-			//hash := decr[1] // hash?
-			opcode = binary.LittleEndian.Uint16(decr[2:4])
-			//fmt.Printf("[%v] %v\n", sess.kostyl, hex.EncodeToString(decr))
+			reader = packet.CreateReader(decr)
+
+			reader.Byte() // seq
+			reader.Byte() // hash
+
+			opcode = reader.Short() //binary.LittleEndian.Uint16(decr[2:4])
 
 			switch opcode {
-			case 0x84:
-				sess.OnMovement(decr)
-				print("Movement")
+			case CS.CreateCharacter:
+				sess.CSCreateCharacter(reader)
+			case CS.SecurityReport:
+				sess.CSSecurityReport(reader)
+			case CS.PremiumServiceMSG:
+				sess.CSPremiumServiceMSG(reader)
+			case CS.LeaveWorld:
+				sess.CSLeaveWorld(reader)
+			case CS.RefreshInCharacterList:
+				sess.CSRefreshInCharacterList(reader)
 			default:
-				//sess.World_6_BigPacket()
-				switch sess.kostyl {
-				case 1:
-					//sess.BeginGame()
-					data, _ := hex.DecodeString("2400dd0564f1fc825223f4c495643405d55a754516e6a91e947cf7c797704010e0b081514272")
-					sess.conn.Write(data)
-					data, _ = hex.DecodeString("1d00dd05107771045f36774517e6bd86214285b4fe1f2e30d1bd8b5dc4f4231d00dd05cd7071045f36774514e6bd86214285b4fe1f2e30d2bd8b5dc4f423")
-					sess.conn.Write(data)
-					//print("1\n")
-				case 3:
-					data, _ := hex.DecodeString("0c00dd05f26537116a238351c6f7")
-					sess.conn.Write(data)
-					//print("3\n")
-				case 4:
-					data, _ := hex.DecodeString("1000dd05f631c9c797704010e0b0815186b7")
-					sess.conn.Write(data)
-					//print("4\n")
-				case 6:
-					sess.World_6_BigPacket()
-					//print("6\n")
-					//fmt.Println("[WORLD-ENCR] No opcode found:", opcode)
-				}
-				sess.kostyl++
+				fmt.Printf("[%x] %v\n", opcode, hex.EncodeToString(decr))
 			}
-			fmt.Printf("[%v] %v\n", strconv.FormatInt(int64(sess.cr.Seq), 16), hex.EncodeToString(decr))
 		default:
 			fmt.Println("[GAME] No such subtype:", subtype)
 		}

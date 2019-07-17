@@ -48,7 +48,7 @@ func (game *GameServer) initializeDatabase(config Config) {
 }
 
 func (game *GameServer) initializeServer(config Config) {
-	game.Address = utils.MakeAdress(config.General.IP, config.General.Port)
+	game.Address = utils.MakeAddress(config.General.IP, config.General.Port)
 
 	// Convert modulus
 	mod, err := hex.DecodeString(config.Crypto.Modulus)
@@ -70,11 +70,20 @@ func main() {
 	}
 
 	// Try to load configuration file, if error then meaningless to proceed
+	log.Println("Loading configuration file...")
 	var config Config
 	if _, err := toml.DecodeFile(configPath, &config); err != nil {
-		log.Fatalln("Config load error:")
+		log.Fatalln("Config load error:", configPath)
 	}
 
+	// Connect to Login server
+	loginConn := LoginConnection{}
+	if err := loginConn.Initialize(config); err != nil {
+		log.Fatalln("Cannot establish connection with Login server, check Address!")
+	}
+	go loginConn.Listen()
+
+	// Initialize Database and Game Server
 	gameServer = &GameServer{}
 	gameServer.initializeDatabase(config)
 	gameServer.initializeServer(config)

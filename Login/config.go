@@ -2,15 +2,22 @@ package main
 
 // Config ... Holds structure of TOML configuration file
 type Config struct {
-	General  general
-	Database database
-	Servers  map[string]server
+	General      general
+	GameListener gameListener
+	Database     database
+	Servers      map[string]server
 }
 
 type general struct {
 	IP        string
 	Port      int
 	Autologin bool
+}
+
+type gameListener struct {
+	IP     string
+	Port   int
+	Secret string
 }
 
 type database struct {

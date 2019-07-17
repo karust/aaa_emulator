@@ -10,6 +10,9 @@ import (
 // LoginServer ... Holds login server data
 type LoginServer struct {
 	Address          string
+	GameConn         *GameConnection
+	Clients          *ConnectionMap
+	NumConnections   uint64
 	Timeout          time.Duration
 	MaxCharacters    byte
 	CharExpanderItem byte
@@ -26,13 +29,15 @@ type GameServer struct {
 	Color    byte   // scolor
 	Load     byte   // 0 - low, 1 - avg, 2 - high
 	IsOnline byte
-	IP       []byte
+	byteIP   []byte
 	Port     uint16
+	IP       string
 }
 
 // Session ... Holds information about login session with client
 type Session struct {
+	ID        uint32
 	Client    net.Conn
 	Username  string
-	AccountID uint
+	AccountID uint64
 }

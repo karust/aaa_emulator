@@ -13,9 +13,11 @@ const (
 	TaxItemConfig            = 0x227 // 0x050
 	InGameShopConfig         = 0x0B9 // 0x190
 	GameRuleConfig           = 0x136 // 0x14d
-	Unknown0x215             = 0x215
+	NationMemberAdd          = 0x215
 	TaxItemConfig2           = 0x00F // 0x13f
 	AccountAttendance        = 0x0FD // 0x211
 	GetSlotCount             = 0x10D // 0x276
 	CharacterList            = 0x25B // 0x15f
+	RefreshInCharacterList   = 0x19e
+	ReconnectAuth            = 0x1da
 )

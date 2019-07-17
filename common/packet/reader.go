@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"net"
 	"time"
+
+	"../../common/crypt"
 )
 
 // Reader ... Reads packets
@@ -26,10 +28,6 @@ func GetPacketReader(client net.Conn, timeout time.Duration) (reader *Reader, er
 	if timeout != 0 {
 		client.SetReadDeadline(time.Now().Add(timeout * time.Second))
 	}
-	//else {
-	//	client.SetReadDeadline(time.Time{})
-	//}
-
 	// Read size of packet
 	packLenBuf := make([]byte, 2)
 	_, err = client.Read(packLenBuf)
@@ -45,8 +43,29 @@ func GetPacketReader(client net.Conn, timeout time.Duration) (reader *Reader, er
 		return
 	}
 
-	// Create reader
 	reader = CreateReader(packBuf)
+	return
+}
+
+// GetEncPacketReader ... Get encrypted packet reader
+func GetEncPacketReader(client net.Conn) (reader *Reader, err error) {
+	// Read size of packet
+	packLenBuf := make([]byte, 2)
+	_, err = client.Read(packLenBuf)
+	if err != nil {
+		return
+	}
+
+	// Read packet
+	packLen := binary.LittleEndian.Uint16(packLenBuf)
+	packBuf := make([]byte, packLen)
+	_, err = client.Read(packBuf)
+	if err != nil {
+		return
+	}
+
+	decr := crypt.ToClientEncr(packBuf[2:])
+	reader = CreateReader(decr)
 	return
 }
 
@@ -78,6 +97,16 @@ func (pr *Reader) Int() int {
 	}
 	defer func() { pr.Offset += 4 }()
 	return int(binary.LittleEndian.Uint32(pr.Pack[pr.Offset : pr.Offset+4]))
+}
+
+// UInt ... read integer
+func (pr *Reader) UInt() uint32 {
+	if pr.Offset+4 > pr.Len {
+		pr.Err = true
+		return 0
+	}
+	defer func() { pr.Offset += 4 }()
+	return binary.LittleEndian.Uint32(pr.Pack[pr.Offset : pr.Offset+4])
 }
 
 // Int24 ... read integer24

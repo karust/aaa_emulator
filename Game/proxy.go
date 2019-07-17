@@ -51,7 +51,7 @@ func (sess *Session) FinishState(reader *packet.Reader) {
 		sess.SCTaxItemConfigPacket(0)
 		sess.SCInGameShopConfigPacket(1, 2, 0)
 		sess.SCGameRuleConfigPacket(0, 0)
-		sess.SCUnknownPacket0x215(1, time.Now().Unix())
+		sess.SCNationMemberAdd(1, time.Now().Unix())
 		sess.SCTaxItemConfig2Packet(0)
 	case 1:
 		sess.ChangeState(2)

@@ -17,6 +17,7 @@ type GameServer struct {
 	Online      uint
 	RSA         *crypt.CryptRSA
 	DB          *sqlx.DB
+	ID          byte
 }
 
 // Connection ... Class for Connection
@@ -33,7 +34,7 @@ type Connection struct {
 type Session struct {
 	conn *Connection
 	//db   *gorm.DB
-	accountID    int
+	accountID    uint64
 	uid          uint
 	cr           *crypt.CryptAES
 	kostyl       int

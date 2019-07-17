@@ -131,15 +131,15 @@ func (sess *Session) WorldListPacket() error {
 	return err
 }
 
-// WorldCookiePacket ... Sends IP of chosen game server and cookie to enter
-func (sess *Session) WorldCookiePacket(cookie uint32, gameServer *GameServer) error {
+// ACWorldCookiePacket ... Sends IP of chosen game server and cookie to enter
+func (sess *Session) ACWorldCookiePacket(cookie uint32, gameServer *GameServer) error {
 	serial := packet.CreateWriter(0xA)
 	serial.UInt(cookie)
 	//serial.Bytes(gameServer.IP) need reverse it
-	serial.Byte(gameServer.IP[3])
-	serial.Byte(gameServer.IP[2])
-	serial.Byte(gameServer.IP[1])
-	serial.Byte(gameServer.IP[0])
+	serial.Byte(gameServer.byteIP[3])
+	serial.Byte(gameServer.byteIP[2])
+	serial.Byte(gameServer.byteIP[1])
+	serial.Byte(gameServer.byteIP[0])
 	serial.Short(gameServer.Port)
 	serial.Long(0)
 	serial.Long(0)
@@ -148,3 +148,10 @@ func (sess *Session) WorldCookiePacket(cookie uint32, gameServer *GameServer) er
 	err := serial.Send(sess.Client)
 	return err
 }
+
+// Not present in 3.5
+// ACEnterWorldDenied ... Negative response when entering the game.
+// func (sess *Session) ACEnterWorldDenied(reason byte) {
+// 	serial := packet.CreateWriter(0xB)
+// 	serial.Byte(reason)
+// }

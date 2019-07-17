@@ -60,7 +60,7 @@ func obfHeader(hash byte, seq byte) (byte, byte) {
 	return a2, a1 // obf HASH, SEQ
 }
 
-func main() {
+func main1() {
 	msgLen := byte(0x2c)
 	//message := make([]byte, msgLen)
 	//message[2] = 0x17 // seq

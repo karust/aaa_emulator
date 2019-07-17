@@ -7,6 +7,7 @@ import (
 
 	"../common/crypt"
 	"../common/packet"
+	"./objects"
 )
 
 func intInSlice(a int, list []int) bool {
@@ -20,17 +21,19 @@ func intInSlice(a int, list []int) bool {
 
 // CSX2EnterWorld ... opc=0, type(H), pFrom(I), pTo(I), accID(I), cookie(Q)
 func (sess *Session) CSX2EnterWorld(reader *packet.Reader) {
-	ttype := reader.Short()
-	pFrom := reader.Int()
-	pTo := reader.Int()
-	accountID := reader.Int()
-	cookie := reader.Long()
+	pFrom := reader.UInt()
+	pTo := reader.UInt()
+	accountID := reader.Long()
+	cookie := reader.UInt()
 	zoneID := reader.Int()
 	tb := reader.Short()
-	revision := reader.Int()
-	index := reader.Int()
+	revision := reader.UInt()
+	index := reader.UInt()
 
-	fmt.Println("[GAME, X2EnterWorld]:", ttype, pFrom, pTo, accountID, cookie, zoneID, tb, revision, index)
+	fmt.Println("[GAME, X2EnterWorld]:", pFrom, pTo, accountID, cookie, zoneID, tb, revision, index)
+	if connID, ok := accounts.Get(uint64(accountID)); ok {
+		fmt.Println(connID, cookie, connID == cookie)
+	}
 
 	// TODO: Check if authorized here
 	// TODO: Load char data from DB
@@ -79,6 +82,110 @@ func (sess *Session) CSGetRsaAesKeys(reader *packet.Reader, rsa crypt.CryptRSA) 
 	sess.conn.Write(h2)
 }
 
+// CSCreateCharacter ... Creation of character
+func (sess *Session) CSCreateCharacter(reader *packet.Reader) {
+	// 5e62 af01 06007177653132330601954e0000cd3d00000000000000000000320200002f0200000000000003ba02000000000000000000000000000000000000000000000900000000000000000000000000803f000000000000803f0000803f00000000000000001000000c0300000000000000000000803f0000803f0000803f0000803f0000803f0000803f0000803fff9538ffc9bc01ffc9bc01ff240005ff00000000800000d6e2d4c83c34a5dfe3641c64b99c649c6400000005f40e00eb000cef07a4fedbd2dc649cf61bc73dd7f2dcd5009cdea99c0000df0d24649c0500003fe99cca5b009c00319c6400f2646464d0000000002b64000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000060d0d01ffffffff1fbf000000
+	name := reader.String()
+	race := reader.Byte()
+	gender := reader.Byte()
+	items := make([]uint32, 7)
+	for i := 0; i < 7; i++ {
+		items[i] = reader.UInt()
+	}
+
+	// Custom model
+	charModel := objects.CharacterModel{}
+	charModel.Parse(reader)
+
+	ability1 := reader.Byte()
+	ability2 := reader.Byte()
+	ability3 := reader.Byte()
+	level := reader.Byte()
+	introZoneID := reader.Int()
+
+	fmt.Println(name, race, gender, items, ability1, ability2, ability3, level, introZoneID)
+}
+
+// CSSecurityReport ... Some message related to securuty violation?
+func (sess *Session) CSSecurityReport(reader *packet.Reader) {
+	// 02 00000000 00000000 cc994900 0000
+	// TODO: What tells this packet?
+	srType := reader.Byte()
+
+	if srType == 1 {
+		unkUInt1 := reader.UInt()
+		unkLong := reader.Long()
+		str := reader.String()
+		unkUInt2 := reader.UInt()
+		unkByte := reader.Byte()
+		fmt.Println("CSSecurityReportPacket 1:", unkUInt1, unkLong, str, unkUInt2, unkByte)
+	} else if srType == 2 {
+		unkUInt1 := reader.UInt()
+		unkUInt2 := reader.UInt()
+		fmt.Println("CSSecurityReportPacket 2:", unkUInt1, unkUInt2)
+	} else if srType == 3 {
+		objID := reader.Byte()
+		unkSh := reader.Short()
+		fmt.Println("CSSecurityReportPacket 3:", objID, unkSh)
+	}
+}
+
+/*
+<packet type="0x09B" level="0x05" desc="CS_PREMIUM_SERVICE_MSG">
+<chunk type="d" name="stage"/>
+</packet>
+*/
+// CSPremiumServiceMSG ... TODO: ?
+func (sess *Session) CSPremiumServiceMSG(reader *packet.Reader) {
+	// 01000000 000052cc000053cc000000
+	stage := reader.Int()
+	//Connection.SendPacket(new SCAccountWarnedPacket(2, "Premium ..."));
+	fmt.Println("CSPremiumServiceMSG:", stage)
+}
+
+/*
+<packet type="0x0BF" level="0x05" desc="CS_LEAVE_WORLD">
+<chunk type="w" name="pSize"/>
+<chunk type="w" name="pLevel"/>
+<chunk type="w" name="pHash"/>
+<chunk type="w" name="pType"/>
+</packet>
+*/
+// CSLeaveWorld ... Report kind of leaving from game
+func (sess *Session) CSLeaveWorld(reader *packet.Reader) {
+	leaveType := reader.Byte()
+
+	switch leaveType {
+	case 0:
+		fmt.Println("CSLeaveWorld, Exit game:", leaveType)
+	case 1:
+		fmt.Println("CSLeaveWorld, Choose characters:", leaveType)
+		// connection.SendPacket(new SCPrepareLeaveWorldPacket(10000, type, false));
+		// connection.LeaveTask = new LeaveWorldTask(connection, type);
+		// TaskManager.Instance.Schedule(connection.LeaveTask, TimeSpan.FromSeconds(10));
+	case 2:
+		// if (connection.State == GameState.Lobby)
+		// {
+		// 	var gsId = AppConfiguration.Instance.Id;
+		// 	LoginNetwork
+		// 		.Instance
+		// 		.GetConnection()
+		// 		.SendPacket(new GLPlayerReconnectPacket(gsId, connection.AccountId, connection.Id));
+		// }
+		sess.SCReconnectAuth(0x0)
+		fmt.Println("CSLeaveWorld, Choose server:", leaveType)
+	default:
+		fmt.Println("CSLeaveWorld, Unknown type:", leaveType)
+	}
+}
+
+// CSRefreshInCharacterList ... TODO: ?
+func (sess *Session) CSRefreshInCharacterList(reader *packet.Reader) {
+	fmt.Println("CSRefreshInCharacterList")
+	sess.SCRefreshInCharacterList()
+}
+
+/*
 func (sess *Session) OnMovement(pack []byte) {
 	reader := packet.CreateReader(pack)
 	reader.Byte()
@@ -117,6 +224,7 @@ func (sess *Session) OnMovement(pack []byte) {
 	go sess.MovementReply(pack, uint32(posX), uint32(posY), uint32(posZ), uint16(rotX), uint16(rotY), uint16(rotZ))
 }
 
+
 func (sess *Session) MovementReply(pack []byte, x, y, z uint32, rx, ry, rz uint16) {
 	for i := range sessions {
 		if sessions[i].alive && sessions[i].ingame && sess != sessions[i] {
@@ -128,3 +236,4 @@ func (sess *Session) MovementReply(pack []byte, x, y, z uint32, rx, ry, rz uint1
 		}
 	}
 }
+*/

@@ -3,6 +3,7 @@ package main
 // Config ... Holds structure of TOML configuration file
 type Config struct {
 	General  general
+	Login    login
 	Crypto   crypto
 	Database database
 }
@@ -10,6 +11,12 @@ type Config struct {
 type general struct {
 	IP   string
 	Port int
+}
+
+type login struct {
+	IP     string
+	Port   int
+	Secret string
 }
 
 type crypto struct {

@@ -37,13 +37,6 @@ func (sess *Session) SCEnterWorldResponsePacket(reason uint16, gm bool, token ui
 	w.Send(sess.conn)
 }
 
-func (sess *Session) BeginGame() {
-	sess.World_0x14f()
-	sess.World_0x145()
-}
-
-// State Responses
-
 // SCHackGuardRetAddrsRequestPacket ...
 func (sess *Session) SCHackGuardRetAddrsRequestPacket(sendAddr bool, spMD5 bool, luaMD5 bool, modPack bool) {
 	w := packet.CreateEncWriter(SC.HackGuardRetAddrsRequest, sess.conn.encSeq)
@@ -202,11 +195,11 @@ func (sess *Session) SCGameRuleConfigPacket(indunCount, conflictCount uint32) {
 	w.Send(sess.conn)
 }
 
-// SCUnknownPacket0x215 ...
-func (sess *Session) SCUnknownPacket0x215(protectFaction byte, time int64) {
+// SCNationMemberAdd ...
+func (sess *Session) SCNationMemberAdd(protectFaction byte, time int64) {
 	// 760b 1502 01 705cba5a00000000 e2070000 03000000 1b000000 12000000 00000000
 	// TODO: Parse time
-	w := packet.CreateEncWriter(SC.Unknown0x215, sess.conn.encSeq)
+	w := packet.CreateEncWriter(SC.NationMemberAdd, sess.conn.encSeq)
 	w.Byte(protectFaction) //protectFaction
 	w.Long(1522162800)     //time
 	w.UInt(2018)           //Year
@@ -352,24 +345,28 @@ func (sess *Session) SCCharacterListPacket(last bool) {
 	w.Send(sess.conn)
 }
 
-func (sess *Session) World_0x14f() {
-	w := packet.CreateEncWriter(0x14f, sess.conn.encSeq)
-	w.UInt(1)
-	w.Byte(1)
-	w.UInt(0)
-	w.Byte(255)
-	w.UInt(0)
-	w.Long(0)
-	w.Long(0)
+// SCRefreshInCharacterList ... TODO: Implement race congestion
+func (sess *Session) SCRefreshInCharacterList() {
+	w := packet.CreateEncWriter(SC.RefreshInCharacterList, sess.conn.encSeq)
+	/*RACE_CONGESTION = {
+	    LOW = 0,
+	    MIDDLE = 1,
+	    HIGH = 2,
+	    FULL = 3,
+	    PRE_SELECT_RACE_FULL = 9,
+	    CHECK = 10
+	}*/
+	for i := 0; i < 9; i++ {
+		w.Byte(0)
+	}
 	w.Send(sess.conn)
 }
 
-func (sess *Session) World_0x145() {
-	w := packet.CreateEncWriter(0x145, sess.conn.encSeq)
-	w.UInt(0x2938) // charID
-	w.Short(1)
-	w.String("version 1\r\n")
-	w.UInt(0xc)
+// SCReconnectAuth ... Sends cookie (token) to client to reconnect to login server
+func (sess *Session) SCReconnectAuth(cookie int32) {
+	w := packet.CreateEncWriter(SC.ReconnectAuth, sess.conn.encSeq)
+	// TODO: Implement obtaining of token from Login server
+	w.Int(cookie)
 	w.Send(sess.conn)
 }
 

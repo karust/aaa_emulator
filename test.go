@@ -12,10 +12,18 @@ func main() {
 		1000dd05 8d37a9c797704010e0b0815186b6
 		0800dd05 12a1de501140
 	*/
-	pack1, _ := hex.DecodeString("12a1de501140")
-	dec1 := crypt.ToClientEncr(pack1)
-	fmt.Println(string(dec1))
-	fmt.Println(hex.EncodeToString(dec1))
+
+	// AES:  fab67330c36ccc117425a4831a6eb2fc , XOR:  2756154973
+	aesKey, _ := hex.DecodeString("fab67330c36ccc117425a4831a6eb2fc")
+	cr := crypt.ClientCrypt(aesKey, 0x2756154973)
+
+	packet, _ := hex.DecodeString("30648929c79e2d755756108b3c0b9fea074837841c8cb7fde128000b10d13bb8e4267af2b6e7da2cacf225e7b6202144c042d1bb5bf319018d239036a98ec53378cbcd1db17e193f07c7dce3fb5ee53cb0b0872653a7b691ad248cb45796b5b9b4bd6c516ef95f1d625dc1007f51d46ecb65045bcf3d357e07dfcf316c1356d559bf4fc761b51065b3f746a7cae55ed80d630817004d2c24c90ad64dc35623a932f0cf288d17f434148e5cc3deebf81046313262d06dd17d8ea14342d52e9e2909af7ab0a307f640197c7502ce4e0a069ffb5ae0190a02a7b529adf43dacf566043dd61a14d87c3fec55fd76f2e513c91e628057786c9c1e9afd2df59c51f631be5147a57c2309e9321815f6de1a8d3579c544918269bcab35d1c7b6a61e5fb1e2b7bdc23c516d39ae698806bb7204dd5044f4940cb179011e6a874a1c27d54d4b")
+	decr := cr.Decrypt(packet, len(packet))
+	fmt.Println(decr)
+	//pack1, _ := hex.DecodeString("12a1de501140")
+	//dec1 := crypt.ToClientEncr(pack1)
+	//fmt.Println(string(dec1))
+	//fmt.Println(hex.EncodeToString(dec1))
 
 	// pack2, _ := hex.DecodeString("cd2089c382625271b0cb11257381d3e43840dba6f90b2c06a99043486eefcd4b6745f31f35e70d0fd0441d85e93e1d834c23f4c494643e05d5a5754517e7b7875627f7c797704010e0b0115081b0")
 	// dec2 := crypt.ToClientEncr(pack2)

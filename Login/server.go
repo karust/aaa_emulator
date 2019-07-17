@@ -13,7 +13,7 @@ func (server *LoginServer) Listen() {
 	listener, _ := net.Listen("tcp", server.Address)
 	defer listener.Close()
 
-	log.Println("ArcheAge Login server started at ", server.Address)
+	log.Println("Login Server started at:", server.Address)
 	for {
 		connection, err := listener.Accept()
 		if err != nil {
@@ -26,7 +26,7 @@ func (server *LoginServer) Listen() {
 }
 
 func handleSession(client net.Conn) {
-	log.Println("Login session with ", client.RemoteAddr().String())
+	//log.Println("Login session with ", client.RemoteAddr().String())
 	defer client.Close()
 
 	session := Session{Client: client}
@@ -41,7 +41,7 @@ func handleSession(client net.Conn) {
 	for {
 		reader, err = packet.GetPacketReader(client, 300)
 		if err != nil {
-			log.Println("Error reading packet", err)
+			//log.Println("Error reading packet", err)
 			break
 		}
 
@@ -67,7 +67,7 @@ func handleSession(client net.Conn) {
 		//case 0x11:
 		//	err = session.RequestAuthTW(reader)
 		case 0xD:
-			err = session.EnterWorld(reader)
+			err = session.X2EnterWorld(reader)
 			//case 0xF:
 			//	err = session.RequestReconnect(reader)
 		}
