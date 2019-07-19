@@ -80,10 +80,10 @@ func (sess *Session) CSGetRsaAesKeys(reader *packet.Reader, rsa crypt.CryptRSA) 
 	//sess.SCCharacterListPacket()
 
 	// a512 ad01 feff0000000000000000000000000000000000000000000900476f6f642d62796521000000000000000000
-	h1, _ := hex.DecodeString("3100dd05f5325dc06f9e3101d2a2724212e3b3835323f4c494643405d5a5754c16a1d9e9330a95bef2514010e0b0815180b0e7")
-	sess.conn.Write(h1)
-	h2, _ := hex.DecodeString("3100dd0598335dc06f9e3101d2a2724212e3b3835323f4c494643405d5a5754c16a1d9e9330a95bef2514010e0b0815180b0e7")
-	sess.conn.Write(h2)
+	//h1, _ := hex.DecodeString("3100dd05f5325dc06f9e3101d2a2724212e3b3835323f4c494643405d5a5754c16a1d9e9330a95bef2514010e0b0815180b0e7")
+	//sess.conn.Write(h1)
+	//h2, _ := hex.DecodeString("3100dd0598335dc06f9e3101d2a2724212e3b3835323f4c494643405d5a5754c16a1d9e9330a95bef2514010e0b0815180b0e7")
+	//sess.conn.Write(h2)
 }
 
 // CSCreateCharacter ... Creation of character
@@ -147,8 +147,9 @@ func (sess *Session) CSSecurityReport(reader *packet.Reader) {
 // CSPremiumServiceMSG ... TODO: ?
 func (sess *Session) CSPremiumServiceMSG(reader *packet.Reader) {
 	// 01000000 000052cc000053cc000000
+
 	stage := reader.Int()
-	//Connection.SendPacket(new SCAccountWarnedPacket(2, "Premium ..."));
+	//sess.SCAccountWarned(2, "Premium ...")
 	fmt.Println("CSPremiumServiceMSG:", stage)
 }
 
@@ -173,12 +174,12 @@ func (sess *Session) CSLeaveWorld(reader *packet.Reader) {
 		// connection.LeaveTask = new LeaveWorldTask(connection, type);
 		// TaskManager.Instance.Schedule(connection.LeaveTask, TimeSpan.FromSeconds(10));
 	case 2:
-		sess.SCChatMessage(-1, 0, "Good-bye!", 0, 0)
-		//gameServer.LoginConn.glPlayerReconnect(gameServer.ID, sess.accountID, sess.connID)
-		//gameServer.SessConn.Remove(sess.connID)
-
-		sess.SCReconnectAuth(0xf9a8b711)
 		fmt.Println("CSLeaveWorld, Choose server:", leaveType)
+		sess.SCChatMessage(-1, 0, "Good-bye!", 0, 0)
+		gameServer.LoginConn.glPlayerReconnect(gameServer.ID, sess.accountID, sess.connID)
+		gameServer.SessConn.Remove(sess.connID)
+
+		//sess.SCReconnectAuth(0x1)
 
 	default:
 		fmt.Println("CSLeaveWorld, Unknown type:", leaveType)

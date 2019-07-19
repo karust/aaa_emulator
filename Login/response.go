@@ -71,6 +71,9 @@ func (sess *Session) JoinResponse() error {
 	// serial.Byte(1)       // AuthID
 	// serial.Short(0)      // Reason
 	// serial.Long(4719366) // "afs" from archerage
+	// afs[0] -> макс кол-во персонажей на всех серверах
+	// afs[1] -> дополнительно кол-во персонажей на сервер при использовании предмета увеличения слота
+	// afs[2] -> 1 - режим предварительного создания персонажей
 	serial.Short(1) // Reason
 	serial.Byte(0)
 	serial.UInt(0x480306) // afs
@@ -82,7 +85,7 @@ func (sess *Session) JoinResponse() error {
 }
 
 // AuthResponse ... TODO: What does WSK?
-func (sess *Session) AuthResponse(accID uint, slotCount byte) error {
+func (sess *Session) AuthResponse(accID uint64, slotCount byte) error {
 	serial := packet.CreateWriter(3)
 	serial.Long(uint64(accID)) // Account ID
 	//wsk, _ := utils.RandomHex(16)

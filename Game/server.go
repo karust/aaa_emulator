@@ -121,12 +121,14 @@ func handleSession(conn *Connection, serv *GameServer) {
 
 		case 5:
 			decr := sess.cr.Decrypt(reader.Pack[2:], len(reader.Pack))
+
 			reader = packet.CreateReader(decr)
 
 			reader.Byte() // seq
 			reader.Byte() // hash
 
-			opcode = reader.Short() //binary.LittleEndian.Uint16(decr[2:4])
+			opcode = reader.Short()
+			fmt.Println(opcode, ":", decr)
 
 			switch opcode {
 			case CS.CreateCharacter:

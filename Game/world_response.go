@@ -372,6 +372,15 @@ func (sess *Session) SCReconnectAuth(cookie uint32) {
 	w.Send(sess.conn)
 }
 
+//SCAccountWarned ...
+func (sess *Session) SCAccountWarned(source byte, msg string) {
+	w := packet.CreateEncWriter(SC.AccountWarned, sess.conn.encSeq)
+	fmt.Println("SCAccountWarned")
+	w.Byte(source)
+	w.String(msg)
+	w.Send(sess.conn)
+}
+
 //  SCChatMessage ... TODO: Implement arguments (character)
 func (sess *Session) SCChatMessage(chtype int16, character byte, message string, ability int, langType byte) {
 	w := packet.CreateEncWriter(SC.ChatMessage, sess.conn.encSeq)

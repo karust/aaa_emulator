@@ -49,7 +49,7 @@ func (sess *Session) ChallengeResponse2(parser *packet.Reader) error {
 	}
 
 	sess.Username = login
-	sess.AccountID = uint64(user.ID)
+	sess.AccountID = user.ID
 	sess.ID = uint32(loginServer.NumConnections & 0xffffffff)
 	err = sess.JoinResponse()
 	err = sess.AuthResponse(user.ID, 0)
@@ -83,4 +83,20 @@ func (sess *Session) X2EnterWorld(parser *packet.Reader) error {
 		return nil
 	}
 	return errors.New("Server not active")
+}
+
+// RequestReconnect ...
+func (sess *Session) RequestReconnect(reader *packet.Reader) error {
+	pFrom := reader.UInt()
+	pTo := reader.UInt()
+	accountID := reader.Long()
+	gsID := reader.Byte()
+	cookie := reader.UInt()
+	macLength := reader.Short()
+	mac := reader.BytesLen(macLength)
+
+	sess.JoinResponse() //1, 0x480306, 0)
+	sess.AuthResponse(sess.AccountID, 0)
+	fmt.Println("RequestReconnect:", pFrom, pTo, accountID, gsID, cookie, mac)
+	return nil
 }

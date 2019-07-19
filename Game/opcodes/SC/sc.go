@@ -21,6 +21,7 @@ const (
 	RefreshInCharacterList   = 0x19e
 	ReconnectAuth            = 0x1da
 	ChatMessage              = 0x1db // 0x1ad
+	AccountWarned            = 0x27a
 )
 
 /*

@@ -28,7 +28,7 @@ CREATE TABLE users (
 
 // User ... User table
 type User struct {
-	ID          uint
+	ID          uint64
 	Login       string
 	Token       string
 	Email       string
