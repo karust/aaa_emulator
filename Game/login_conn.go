@@ -109,12 +109,26 @@ func (login *LoginConnection) glRegister() {
 func (login *LoginConnection) lgPlayerEnter(reader *packet.Reader) {
 	accID := reader.Long()
 	connID := reader.UInt()
+	fmt.Println("lgPlayerEnter", accID, connID)
 	if _, ok := accounts.Get(accID); ok {
 		login.glPlayerEnter(connID, gameServer.ID, 1)
 	} else {
 		accounts.Set(accID, connID)
+		// TODO: kostyl &Session{}
+		gameServer.SessConn.Set(connID, &Session{})
 		login.glPlayerEnter(connID, gameServer.ID, 0)
 	}
+}
+
+func (login *LoginConnection) lgPlayerReconnect(reader *packet.Reader) {
+	connID := reader.UInt()
+	// TODO: kostyl
+	fmt.Println("lgPlayerReconnect", connID)
+	//sess.SCReconnectAuth(123)
+	//if sess, ok := gameServer.SessConn.Get(connID); ok {
+	//	fmt.Println(sess.connID, sess.uid)
+	//	sess.SCReconnectAuth(sess.connID)
+	//}
 }
 
 //glPlayerEnter ...
@@ -132,12 +146,4 @@ func (login *LoginConnection) glPlayerReconnect(gsID byte, accID uint64, connID 
 	wr.Long(accID)
 	wr.UInt(connID)
 	wr.Send(login.conn)
-}
-
-func (login *LoginConnection) lgPlayerReconnect(reader *packet.Reader) {
-	connID := reader.UInt()
-	if sess, ok := gameServer.SessConn.Get(connID); ok {
-		fmt.Println("lgPlayerReconnect", sess.connID, sess.uid)
-		sess.SCReconnectAuth(sess.connID)
-	}
 }

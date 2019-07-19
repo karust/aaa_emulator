@@ -176,10 +176,10 @@ func (sess *Session) CSLeaveWorld(reader *packet.Reader) {
 	case 2:
 		fmt.Println("CSLeaveWorld, Choose server:", leaveType)
 		sess.SCChatMessage(-1, 0, "Good-bye!", 0, 0)
-		gameServer.LoginConn.glPlayerReconnect(gameServer.ID, sess.accountID, sess.connID)
+		//gameServer.LoginConn.glPlayerReconnect(gameServer.ID, sess.accountID, sess.connID)
 		gameServer.SessConn.Remove(sess.connID)
 
-		//sess.SCReconnectAuth(0x1)
+		sess.SCReconnectAuth(0xffffffff)
 
 	default:
 		fmt.Println("CSLeaveWorld, Unknown type:", leaveType)
